@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Read:Me</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --gold:#c9a84c; --gold-d:#a07830; --gold-faint:rgba(201,168,76,.14);
+      --pl:#f5e9c4; --pr:#eddfa5;
+      --ink:#2c1a0e; --inkm:#5c3d28; --inkf:rgba(92,61,40,.42);
+      --sw:185px; --nh:56px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidden;background:#090503;display:flex;flex-direction:column;}
+
+    .bg{position:fixed;inset:0;z-index:0;
+      background:url('/img/KakaoTalk_20260518_014001772_01.jpg') center/cover no-repeat;
+      filter:brightness(.32) saturate(.7);}
+    .app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;}
+
+    /* 상단바 */
+    .topbar{display:flex;align-items:center;justify-content:space-between;
+      padding:9px 20px;background:rgba(6,3,1,.65);
+      border-bottom:1px solid rgba(201,168,76,.15);flex-shrink:0;}
+    .logo{color:var(--gold);font-size:17px;font-weight:700;letter-spacing:3px;}
+    .logo-sub{color:rgba(201,168,76,.45);font-size:8.5px;letter-spacing:.8px;margin-top:1px;}
+    .bell{font-size:17px;color:rgba(220,190,130,.55);cursor:pointer;}
+
+    /* 바디 */
+    .body-area{display:flex;flex:1;overflow:hidden;}
+
+    /* 사이드바 */
+    .sidebar{width:var(--sw);flex-shrink:0;background:rgba(8,4,2,.84);
+      border-right:1px solid rgba(201,168,76,.12);display:flex;flex-direction:column;padding:14px 0 0;}
+    .ni{font-size:14px;width:18px;text-align:center;}
+    .nav-item{display:flex;align-items:center;gap:9px;padding:10px 16px;
+      color:rgba(210,178,118,.5);font-size:12px;cursor:pointer;
+      border-left:3px solid transparent;transition:all .16s;user-select:none;}
+    .nav-item:hover{color:rgba(210,178,118,.85);background:var(--gold-faint);}
+    .nav-item.active{color:var(--gold);background:rgba(201,168,76,.11);border-left-color:var(--gold);}
+    .sidebar-spacer{flex:1;}
+    .maru-box{padding:10px 12px 12px;border-top:1px solid rgba(201,168,76,.1);}
+
+    /* 마루 스프라이트 — maru.png 는 아기/소년/현자 순서로 세로 3분할 */
+    .maru-sprite{
+      width:82px; height:82px; margin:0 auto;
+      background:url('/img/maru_nobg.png') no-repeat center;
+      background-size:auto 300%;
+      cursor:pointer; transition:transform .22s;
+      filter:drop-shadow(0 2px 6px rgba(201,168,76,.45));
+    }
+    .maru-sprite:hover{transform:scale(1.08);}
+    .maru-s1{background-position:center 3%;}
+    .maru-s2{background-position:center 50%;}
+    .maru-s3{background-position:center 97%;}
+
+    /* 성장 정보 */
+    .maru-stage-name{text-align:center;font-size:10px;font-weight:700;color:var(--gold);
+      margin:5px 0 2px;letter-spacing:.5px;}
+    .maru-lv{text-align:center;font-size:9px;color:rgba(201,168,76,.55);margin-bottom:6px;}
+    .maru-prog-wrap{height:4px;background:rgba(255,255,255,.1);border-radius:2px;
+      margin-bottom:6px;overflow:hidden;}
+    .maru-prog-fill{height:100%;border-radius:2px;
+      background:linear-gradient(90deg,#c9a84c,#f0d080);transition:width .6s ease;}
+    .maru-prog-lbl{font-size:8.5px;color:rgba(201,168,76,.45);text-align:center;margin-bottom:6px;}
+
+    .maru-bubble{background:rgba(201,168,76,.09);border:1px solid rgba(201,168,76,.22);
+      border-radius:7px;padding:6px 8px;font-size:10px;color:rgba(210,178,118,.7);line-height:1.5;text-align:center;}
+
+    /* 레벨업 토스트 */
+    .levelup-toast{
+      position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(30px);
+      background:linear-gradient(135deg,#c9a84c,#9e7428);
+      color:#fff;padding:10px 24px;border-radius:20px;font-size:12px;font-weight:700;
+      box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:100;
+      opacity:0;transition:all .4s ease;pointer-events:none;white-space:nowrap;
+    }
+    .levelup-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+    @keyframes maruBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .maru-bounce{animation:maruBounce .5s ease 2;}
+
+    /* 메인 */
+    .main{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:16px 20px;}
+
+    /* 책 */
+    .book{display:flex;width:100%;max-width:880px;height:100%;max-height:545px;
+      border-radius:3px 6px 6px 3px;position:relative;
+      box-shadow:0 22px 65px rgba(0,0,0,.75),0 0 0 1px rgba(201,168,76,.22);}
+    .book::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:6px;
+      background:linear-gradient(to right,rgba(0,0,0,.32) 0%,rgba(201,168,76,.22) 45%,rgba(201,168,76,.22) 55%,rgba(0,0,0,.32) 100%);
+      transform:translateX(-50%);z-index:5;}
+
+    /* 각 페이지 패널 */
+    .page{flex:1;padding:24px 26px 18px;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+    .page-left{background:linear-gradient(155deg,#f6ead0 0%,#ecdfa8 100%);border-radius:3px 0 0 3px;
+      box-shadow:inset -8px 0 18px rgba(0,0,0,.1);}
+    .page-right{background:linear-gradient(155deg,#eddfa8 0%,#e8d496 100%);border-radius:0 6px 6px 0;
+      box-shadow:inset 8px 0 18px rgba(0,0,0,.08);}
+
+    /* 모서리 장식 (position:absolute 이므로 자동 유지) */
+    .corner{position:absolute;width:16px;height:16px;opacity:.3;pointer-events:none;}
+    .c-tl{top:9px;left:9px;border-top:1.5px solid var(--gold-d);border-left:1.5px solid var(--gold-d);}
+    .c-tr{top:9px;right:9px;border-top:1.5px solid var(--gold-d);border-right:1.5px solid var(--gold-d);}
+    .c-bl{bottom:9px;left:9px;border-bottom:1.5px solid var(--gold-d);border-left:1.5px solid var(--gold-d);}
+    .c-br{bottom:9px;right:9px;border-bottom:1.5px solid var(--gold-d);border-right:1.5px solid var(--gold-d);}
+
+    /* 페이지 섹션 — show/hide */
+    .pg-section{display:none;flex-direction:column;flex:1;overflow:hidden;}
+    .pg-section.visible{display:flex;}
+
+    /* 공통 타이포 */
+    .pg-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-shrink:0;}
+    .pg-icon{font-size:17px;}
+    .pg-title{font-size:13px;font-weight:700;color:var(--ink);}
+    .pg-sub{font-size:10px;color:var(--inkm);line-height:1.6;margin-bottom:10px;flex-shrink:0;}
+    .sec-lbl{font-size:9.5px;font-weight:700;color:var(--gold-d);letter-spacing:.5px;margin-bottom:5px;flex-shrink:0;}
+    .divider{border:none;border-top:1px solid rgba(160,120,60,.2);margin:9px 0;flex-shrink:0;}
+
+    /* 스크롤 영역 */
+    .scroll{flex:1;overflow-y:auto;padding-right:2px;}
+    .scroll::-webkit-scrollbar{width:3px;}
+    .scroll::-webkit-scrollbar-thumb{background:rgba(160,120,60,.3);border-radius:2px;}
+
+    /* 감정 칩 */
+    .chips{display:flex;flex-wrap:wrap;gap:4px;}
+    .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+    .chip-pos{background:rgba(201,168,76,.22);color:#6b4e10;border:1px solid rgba(201,168,76,.38);}
+    .chip-neg{background:rgba(80,110,150,.18);color:#2d4a6a;border:1px solid rgba(80,110,150,.28);}
+    .chip-ang{background:rgba(180,70,55,.18);color:#7a2810;border:1px solid rgba(180,70,55,.26);}
+    .chip-neu{background:rgba(110,90,70,.18);color:#4a3a2a;border:1px solid rgba(110,90,70,.26);}
+    .chip-sm{font-size:9.5px;padding:1.5px 7px;}
+
+    /* 바 */
+    .bar-wrap{flex:1;height:5px;background:rgba(0,0,0,.09);border-radius:3px;overflow:hidden;}
+    .bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#c9a84c,#e8c060);transition:width .5s ease;}
+    .meta-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--inkm);}
+    .meta-key{font-weight:700;color:var(--ink);min-width:58px;}
+
+    /* 버튼 */
+    .gold-btn{background:linear-gradient(135deg,#c9a84c,#9e7428);border:none;color:#fff;
+      padding:7px 20px;border-radius:20px;font-family:'Noto Serif KR',serif;
+      font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.8px;
+      box-shadow:0 3px 10px rgba(0,0,0,.32);transition:all .16s;}
+    .gold-btn:hover{transform:translateY(-1px);}
+    .gold-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+    /* placeholder */
+    .ph{flex:1;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:9px;color:var(--inkf);font-size:11px;text-align:center;}
+    .ph .pi{font-size:26px;opacity:.38;}
+
+    /* ══ 일기 쓰기 ══ */
+    .diary-ta{flex:1;background:rgba(255,255,255,.27);border:1px solid rgba(160,120,60,.27);
+      border-radius:4px;padding:11px 13px;font-family:'Noto Serif KR',serif;
+      font-size:12.5px;line-height:1.9;color:var(--ink);resize:none;outline:none;}
+    .diary-ta::placeholder{color:var(--inkf);}
+    .diary-ta:focus{border-color:rgba(201,168,76,.48);}
+    .pg-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-shrink:0;}
+    .char-cnt{font-size:10px;color:var(--inkf);}
+    .maru-memo{background:rgba(255,255,255,.26);border:1px solid rgba(160,120,60,.26);
+      border-radius:5px;padding:10px 12px;font-size:11.5px;line-height:1.75;color:var(--ink);}
+
+    /* ══ 홈 ══ */
+    .stat-row{display:flex;gap:10px;margin-bottom:12px;flex-shrink:0;}
+    .stat-card{flex:1;background:rgba(255,255,255,.25);border:1px solid rgba(160,120,60,.22);
+      border-radius:6px;padding:10px;text-align:center;}
+    .stat-num{font-size:22px;font-weight:700;color:var(--ink);}
+    .stat-lbl{font-size:9.5px;color:var(--inkm);margin-top:2px;}
+    .home-entry{background:rgba(255,255,255,.22);border:1px solid rgba(160,120,60,.2);
+      border-radius:5px;padding:8px 10px;cursor:pointer;transition:all .15s;margin-bottom:6px;}
+    .home-entry:hover{background:rgba(255,255,255,.38);}
+    .home-entry-date{font-size:9.5px;color:var(--inkf);margin-bottom:3px;}
+    .home-entry-text{font-size:11px;color:var(--inkm);line-height:1.5;
+      overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;}
+    .home-cta{flex:1;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:14px;}
+    .maru-big{font-size:54px;filter:drop-shadow(0 0 8px rgba(201,168,76,.4));}
+    .home-cta-text{font-size:12px;color:var(--inkm);text-align:center;line-height:1.7;}
+
+    /* ══ 서재 ══ */
+    .lib-item{padding:9px 10px;background:rgba(255,255,255,.2);border:1px solid rgba(160,120,60,.18);
+      border-radius:5px;cursor:pointer;transition:all .15s;margin-bottom:6px;}
+    .lib-item:hover{background:rgba(255,255,255,.35);}
+    .lib-item.sel{background:rgba(201,168,76,.18);border-color:rgba(201,168,76,.4);}
+    .lib-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+    .lib-date{font-size:9.5px;color:var(--inkf);}
+    .lib-summary{font-size:11px;color:var(--ink);font-weight:600;
+      overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-bottom:4px;}
+    /* 삭제 버튼 */
+    .del-btn{
+      background:none;border:none;cursor:pointer;
+      font-size:13px;color:rgba(180,80,60,.5);
+      padding:2px 5px;border-radius:4px;
+      transition:all .15s;flex-shrink:0;
+      opacity:0;
+    }
+    .lib-item:hover .del-btn{opacity:1;}
+    .del-btn:hover{background:rgba(180,80,60,.15);color:rgba(200,60,40,.9);}
+
+    /* 삭제 확인 모달 */
+    .modal-overlay{
+      position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+      display:none;align-items:center;justify-content:center;
+    }
+    .modal-overlay.open{display:flex;}
+    .modal{
+      background:linear-gradient(155deg,#f5e9c4,#ecdfa8);
+      border-radius:10px;padding:28px 32px;max-width:320px;width:90%;
+      box-shadow:0 16px 50px rgba(0,0,0,.6);text-align:center;
+      border:1px solid rgba(201,168,76,.3);
+    }
+    .modal h3{font-size:14px;color:var(--ink);margin-bottom:10px;}
+    .modal p{font-size:11.5px;color:var(--inkm);line-height:1.7;margin-bottom:20px;}
+    .modal-btns{display:flex;gap:10px;justify-content:center;}
+    .modal-cancel{background:rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.15);
+      color:var(--inkm);padding:7px 20px;border-radius:20px;font-family:inherit;
+      font-size:11px;cursor:pointer;transition:all .15s;}
+    .modal-cancel:hover{background:rgba(0,0,0,.13);}
+    .modal-del{background:linear-gradient(135deg,#c0503a,#a03020);border:none;
+      color:#fff;padding:7px 20px;border-radius:20px;font-family:inherit;
+      font-size:11px;font-weight:700;cursor:pointer;
+      box-shadow:0 3px 10px rgba(0,0,0,.3);transition:all .15s;}
+    .modal-del:hover{transform:translateY(-1px);}
+
+    .lib-text{background:rgba(255,255,255,.25);border:1px solid rgba(160,120,60,.22);
+      border-radius:5px;padding:10px 12px;font-size:11.5px;line-height:1.85;color:var(--ink);
+      margin-bottom:9px;max-height:130px;overflow-y:auto;}
+
+    /* ══ 감정 도감 ══ */
+    .emo-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+    .emo-card{background:rgba(255,255,255,.2);border:1px solid rgba(160,120,60,.18);
+      border-radius:5px;padding:6px 8px;display:flex;align-items:center;gap:6px;}
+    .emo-card:hover{background:rgba(255,255,255,.32);}
+    .emo-emoji{font-size:18px;}
+    .emo-name{font-size:10.5px;font-weight:700;color:var(--ink);}
+    .emo-desc{font-size:9px;color:var(--inkf);line-height:1.4;}
+    .freq-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+    .freq-lbl{font-size:10.5px;color:var(--ink);min-width:72px;}
+    .freq-bar{flex:1;height:10px;background:rgba(0,0,0,.08);border-radius:5px;overflow:hidden;}
+    .freq-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#c9a84c,#e0b850);}
+    .freq-cnt{font-size:9.5px;color:var(--inkf);min-width:18px;text-align:right;}
+
+    /* ══ 통계 ══ */
+    .stat-big{text-align:center;padding:10px 0 8px;}
+    .stat-big-num{font-size:44px;font-weight:700;color:var(--ink);line-height:1;}
+    .stat-big-lbl{font-size:11px;color:var(--inkm);margin-top:4px;}
+    .pol-row{display:flex;align-items:center;gap:8px;font-size:11px;margin-bottom:6px;}
+    .pol-lbl{min-width:55px;color:var(--inkm);}
+    .pol-bar{flex:1;height:11px;border-radius:5px;overflow:hidden;background:rgba(0,0,0,.08);}
+    .pf-pos{height:100%;border-radius:5px;background:linear-gradient(90deg,#c9a84c,#e0b850);}
+    .pf-neg{height:100%;border-radius:5px;background:linear-gradient(90deg,#7a9ec0,#5a7ea0);}
+    .pf-mix{height:100%;border-radius:5px;background:linear-gradient(90deg,#a08060,#c0a070);}
+    .pol-cnt{font-size:10px;color:var(--inkf);min-width:20px;}
+    .top-row{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+    .top-em{font-size:16px;min-width:22px;}
+    .top-nm{font-size:10.5px;color:var(--ink);min-width:64px;}
+    .top-bar{flex:1;height:9px;border-radius:4px;overflow:hidden;background:rgba(0,0,0,.08);}
+    .top-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#c9a84c,#ddb040);}
+    .top-cnt{font-size:9.5px;color:var(--inkf);min-width:18px;text-align:right;}
+    .no-data{text-align:center;padding:20px 0;color:var(--inkf);font-size:11px;line-height:1.8;}
+
+    /* 하단 네비 */
+    .bottom-nav{height:var(--nh);flex-shrink:0;background:rgba(6,3,1,.9);
+      border-top:1px solid rgba(201,168,76,.13);display:flex;align-items:center;
+      justify-content:space-around;padding:0 8px;}
+    .bn{display:flex;flex-direction:column;align-items:center;gap:2px;
+      color:rgba(210,178,118,.42);font-size:9px;cursor:pointer;
+      padding:4px 14px;border-radius:7px;transition:all .16s;user-select:none;}
+    .bn.active{color:var(--gold);}
+    .bn:hover{color:rgba(201,168,76,.75);}
+    .bi{font-size:18px;}
+    .bn-r{font-size:9.5px;color:rgba(201,168,76,.42);}
+
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .spin{display:inline-block;animation:spin .85s linear infinite;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    .fi{animation:fadeIn .22s ease both;}
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+
+  <div class="topbar">
+    <div>
+      <div class="logo">Read:Me</div>
+      <div class="logo-sub">과거의 나를 읽고 오늘의 나를 돌보다</div>
+    </div>
+    <span class="bell">🔔</span>
+  </div>
+
+  <div class="body-area">
+    <div class="sidebar">
+      <div class="nav-item" id="nav-home"     onclick="go('home')">    <span class="ni">🏠</span> 홈</div>
+      <div class="nav-item active" id="nav-write"   onclick="go('write')">   <span class="ni">📖</span> 일기 쓰기</div>
+      <div class="nav-item" id="nav-library"  onclick="go('library')"> <span class="ni">🗂️</span> 최근 서재</div>
+      <div class="nav-item" id="nav-emotions" onclick="go('emotions')"><span class="ni">🎭</span> 감정 도감</div>
+      <div class="nav-item" id="nav-stats"    onclick="go('stats')">   <span class="ni">📊</span> 통계</div>
+      <div class="sidebar-spacer"></div>
+      <div class="maru-box">
+        <div class="maru-sprite maru-s1" id="maruSprite" onclick="go('write')" title="마루"></div>
+        <div class="maru-stage-name" id="maruStageName">아기 마루</div>
+        <div class="maru-lv" id="maruLv">일기 0개 · 다음 단계까지 5개</div>
+        <div class="maru-prog-wrap"><div class="maru-prog-fill" id="maruProg" style="width:0%"></div></div>
+        <div class="maru-bubble" id="maruSpeech">안녕! 나는 아기 마루야 🥚<br>일기를 쓰면 같이 자랄게!</div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="book">
+
+        <!-- ══ 왼쪽 반 ══ -->
+        <div class="page page-left">
+          <span class="corner c-tl"></span><span class="corner c-tr"></span>
+          <span class="corner c-bl"></span><span class="corner c-br"></span>
+
+          <!-- 홈 L -->
+          <div class="pg-section" id="home-L">
+            <div class="pg-head"><span class="pg-icon">🏠</span><span class="pg-title">오늘의 서재</span></div>
+            <div id="home-date" class="pg-sub"></div>
+            <div class="stat-row" id="home-stats">
+              <div class="stat-card"><div class="stat-num" id="hs-total">…</div><div class="stat-lbl">총 일기</div></div>
+              <div class="stat-card"><div class="stat-num" id="hs-emo" style="font-size:22px">…</div><div class="stat-lbl" id="hs-emo-lbl">주요 감정</div></div>
+            </div>
+            <div class="sec-lbl">최근 기록</div>
+            <div class="scroll" id="home-entries"><div class="ph"><span class="pi spin">⟳</span></div></div>
+          </div>
+
+          <!-- 일기 쓰기 L -->
+          <div class="pg-section visible" id="write-L">
+            <div class="pg-head"><span class="pg-icon">🔖</span><span class="pg-title">오늘의 기록 창고</span></div>
+            <p class="pg-sub">마루에게 오늘 하루를 솔직하게 털어놓아 보세요.</p>
+            <textarea id="diaryInput" class="diary-ta" placeholder="오늘 있었던 일, 느꼈던 감정을 자유롭게 적어보세요..." maxlength="2000"></textarea>
+            <div class="pg-footer">
+              <span class="char-cnt" id="charCount">0 / 2000</span>
+              <button class="gold-btn" id="analyzeBtn" onclick="doAnalyze()">분석하기</button>
+            </div>
+          </div>
+
+          <!-- 서재 L -->
+          <div class="pg-section" id="library-L">
+            <div class="pg-head"><span class="pg-icon">🗂️</span><span class="pg-title">기록 목록</span></div>
+            <p class="pg-sub">지난 일기들을 다시 꺼내보세요.</p>
+            <div class="scroll" id="lib-list"><div class="ph"><span class="pi spin">⟳</span></div></div>
+          </div>
+
+          <!-- 감정 도감 L -->
+          <div class="pg-section" id="emotions-L">
+            <div class="pg-head"><span class="pg-icon">🎭</span><span class="pg-title">감정 도감</span></div>
+            <p class="pg-sub">마루가 인식하는 24가지 감정들이에요.</p>
+            <div class="scroll">
+              <div class="emo-grid" id="emo-grid"></div>
+            </div>
+          </div>
+
+          <!-- 통계 L -->
+          <div class="pg-section" id="stats-L">
+            <div class="pg-head"><span class="pg-icon">📊</span><span class="pg-title">감정 통계</span></div>
+            <div class="scroll" id="stats-left-content"><div class="ph"><span class="pi spin">⟳</span></div></div>
+          </div>
+        </div>
+
+        <!-- ══ 오른쪽 반 ══ -->
+        <div class="page page-right">
+          <span class="corner c-tl"></span><span class="corner c-tr"></span>
+          <span class="corner c-bl"></span><span class="corner c-br"></span>
+
+          <!-- 홈 R -->
+          <div class="pg-section" id="home-R">
+            <div class="home-cta">
+              <div class="maru-big">🐱</div>
+              <div class="home-cta-text">안녕! 나는 마루야.<br>네 이야기를 들려줘.<br><span style="font-size:10px;opacity:.65">일기를 쓸수록 더 잘 이해하게 될 거야.</span></div>
+              <button class="gold-btn" onclick="go('write')">✏️ 오늘 일기 쓰기</button>
+            </div>
+          </div>
+
+          <!-- 일기 쓰기 R -->
+          <div class="pg-section visible" id="write-R">
+            <div class="pg-head"><span class="pg-icon">👁️</span><span class="pg-title">마루의 피드백</span></div>
+            <p class="pg-sub">일기를 분석하면 감정과 마루의 한마디를 확인할 수 있어요.</p>
+            <div id="feedbackArea" style="flex:1;display:flex;flex-direction:column;">
+              <div class="ph"><span class="pi">👁️</span><p>일기를 작성하고<br>분석하기를 눌러보세요.</p></div>
+            </div>
+          </div>
+
+          <!-- 서재 R -->
+          <div class="pg-section" id="library-R">
+            <div class="pg-head"><span class="pg-icon">📄</span><span class="pg-title">일기 상세</span></div>
+            <div id="lib-detail" style="flex:1;display:flex;flex-direction:column;">
+              <div class="ph"><span class="pi">🗂️</span><p>왼쪽에서 일기를 선택하세요.</p></div>
+            </div>
+          </div>
+
+          <!-- 감정 도감 R -->
+          <div class="pg-section" id="emotions-R">
+            <div class="pg-head"><span class="pg-icon">📈</span><span class="pg-title">나의 감정 분포</span></div>
+            <p class="pg-sub">내 일기에 가장 많이 등장한 감정이에요.</p>
+            <div class="scroll" id="emo-freq"><div class="ph"><span class="pi spin">⟳</span></div></div>
+          </div>
+
+          <!-- 통계 R -->
+          <div class="pg-section" id="stats-R">
+            <div class="pg-head"><span class="pg-icon">🏆</span><span class="pg-title">감정 빈도 TOP 10</span></div>
+            <div class="scroll" id="stats-right-content"><div class="ph"><span class="pi spin">⟳</span></div></div>
+          </div>
+        </div>
+
+      </div><!-- book end -->
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bn" id="bn-home"     onclick="go('home')">    <span class="bi">🏠</span><span>홈</span></div>
+    <div class="bn active" id="bn-write"   onclick="go('write')">   <span class="bi">📖</span><span>일기 쓰기</span></div>
+    <div class="bn" id="bn-library"  onclick="go('library')"> <span class="bi">🗂️</span><span>최근 서재</span></div>
+    <div class="bn" id="bn-emotions" onclick="go('emotions')"><span class="bi">🎭</span><span>감정 도감</span></div>
+    <div class="bn" id="bn-stats"    onclick="go('stats')">   <span class="bi">📊</span><span>통계</span></div>
+    <div class="bn-r" id="bnLevel">Lv.1</div>
+  </div>
+</div>
+
+<!-- 삭제 확인 모달 -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal">
+    <h3>🗑️ 일기를 삭제할까요?</h3>
+    <p id="delModalPreview" style="font-size:11px;color:var(--inkm);line-height:1.7;"></p>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeDelModal()">취소</button>
+      <button class="modal-del"   onclick="confirmDelete()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8003';
+const PAGES = ['home','write','library','emotions','stats'];
+let cur = 'write';
+let diariesCache = null;
+let selId = null;
+
+const EMOJI={
+  '기쁨':'😊','행복감':'😄','환희':'✨','설렘':'💓','감사함':'🙏',
+  '슬픔':'😢','우울함':'😔','외로움':'🌙','허무함':'🍂','그리움':'💭',
+  '불안함':'😰','걱정':'😟','두려움':'😨','긴장감':'😬',
+  '분노':'😡','짜증남':'😤','원망':'💢','억울함':'😠',
+  '무기력함':'😪','지침':'😵','싱숭생숭함':'🌀','혼란스러움':'💫',
+  '평온함':'😌','무감각함':'😶'
+};
+const CHIP_CLS={
+  '기쁨':'pos','행복감':'pos','환희':'pos','설렘':'pos','감사함':'pos','평온함':'pos',
+  '슬픔':'neg','우울함':'neg','외로움':'neg','허무함':'neg','그리움':'neg',
+  '분노':'ang','짜증남':'ang','원망':'ang','억울함':'ang',
+  '불안함':'neu','걱정':'neu','두려움':'neu','긴장감':'neu',
+  '무기력함':'neu','지침':'neu','싱숭생숭함':'neu','혼란스러움':'neu','무감각함':'neu'
+};
+const EMO_DESC={
+  '기쁨':'밝고 활기찬 감정','행복감':'전반적인 만족과 평화','환희':'극도로 기쁜 상태',
+  '설렘':'기대와 흥분이 섞인 감정','감사함':'받은 것에 대한 고마움',
+  '슬픔':'상실이나 아픔에서 오는 감정','우울함':'지속되는 슬픔과 무기력',
+  '외로움':'혼자라는 느낌','허무함':'의미를 잃은 공허한 감정','그리움':'지난 것에 대한 그리움',
+  '불안함':'불확실함에 대한 두려움','걱정':'나쁜 일이 생길까 봐 염려',
+  '두려움':'위험이나 위협에 대한 반응','긴장감':'긴장되고 조여드는 느낌',
+  '분노':'불공정함에 대한 강한 반응','짜증남':'사소한 것에 불쾌한 감정',
+  '원망':'상대에 대한 감정의 응어리','억울함':'부당하게 당했다는 느낌',
+  '무기력함':'아무것도 하기 싫은 상태','지침':'육체적·정신적 피로',
+  '싱숭생숭함':'마음이 뒤숭숭한 상태','혼란스러움':'갈피를 잡기 어려운 상태',
+  '평온함':'고요하고 안정된 상태','무감각함':'감정이 둔해진 상태'
+};
+
+const SPEECHES={
+  home:'반가워! 오늘의 서재를\n살펴볼까? 📚',
+  write:'솔직하게 털어놔.\n내가 다 들을게 🐾',
+  library:'과거의 기록들이\n여기 잠들어 있어 🌙',
+  emotions:'감정에는 이름이\n있어야 해 🎭',
+  stats:'네 감정의 흐름을\n함께 볼까? 📊'
+};
+
+/* ── 마루 성장 시스템 ── */
+const MARU_STAGES = {
+  1: {
+    cls: 'maru-s1',
+    name: '아기 마루',
+    speeches: [
+      '안녕! 나는 아기 마루야 🥚\n일기를 쓰면 같이 자랄게!',
+      '아직 잘 모르지만...\n네 이야기가 궁금해 🌱',
+      '솔직하게 털어놔.\n내가 다 들을게 🐾'
+    ]
+  },
+  2: {
+    cls: 'maru-s2',
+    name: '소년 마루',
+    speeches: [
+      '나 이제 날개가 생겼어! 🦉\n네 감정 패턴이 보이기 시작해.',
+      '같이 많이 쌓았구나!\n오늘은 어떤 하루였어?',
+      '점점 네가 어떤 사람인지\n알 것 같아 🌿'
+    ]
+  },
+  3: {
+    cls: 'maru-s3',
+    name: '현자 마루',
+    speeches: [
+      '우린 이제 오랜 친구야. 🌙\n네 마음을 잘 알고 있어.',
+      '많이 성장했어, 나도 너도. ✨\n오늘도 여기 있을게.',
+      '힘들 땐 언제든 털어놔. 🦉\n과거의 네가 답을 알고 있어.'
+    ]
+  }
+};
+
+let prevStage = 1;
+
+function updateMaru(stats) {
+  const maru = stats.maru || { stage: 1, stage_name: '아기 마루', next_at: 5, progress: 0 };
+  const { stage, stage_name, next_at, progress } = maru;
+  const total = stats.total || 0;
+  const stageInfo = MARU_STAGES[stage] || MARU_STAGES[1];
+
+  // 스프라이트 단계 교체
+  const sprite = document.getElementById('maruSprite');
+  sprite.className = 'maru-sprite ' + stageInfo.cls;
+
+  // 이름 & 레벨 텍스트
+  document.getElementById('maruStageName').textContent = stage_name;
+  document.getElementById('maruLv').textContent = next_at
+    ? `일기 ${total}개 · 다음 단계까지 ${next_at - total}개`
+    : `일기 ${total}개 · 최고 단계 달성! 🎉`;
+
+  // 프로그레스바
+  document.getElementById('maruProg').style.width = Math.round(progress * 100) + '%';
+
+  // 하단 레벨 표시
+  document.getElementById('bnLevel').textContent = `Lv.${total}`;
+
+  // 페이지별 말풍선은 go()에서 처리, 기본 말풍선은 stage 기반
+  const speechList = stageInfo.speeches;
+  const todaySpeech = speechList[total % speechList.length];
+  // 현재 write 페이지가 아니면 기본 말풍선 업데이트
+  if (cur === 'write' || cur === 'home') {
+    document.getElementById('maruSpeech').textContent = todaySpeech;
+  }
+
+  // 레벨업 감지
+  if (prevStage !== stage && prevStage !== 0) {
+    showLevelUp(stage_name);
+    sprite.classList.add('maru-bounce');
+    setTimeout(() => sprite.classList.remove('maru-bounce'), 1100);
+  }
+  prevStage = stage;
+}
+
+function showLevelUp(stageName) {
+  let toast = document.getElementById('levelupToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'levelupToast';
+    toast.className = 'levelup-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = `🎉 마루가 성장했어요! → ${stageName}`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function fetchAndUpdateMaru() {
+  fetch(`${API}/stats`).then(r => r.json()).then(updateMaru).catch(() => {});
+}
+
+// 앱 시작 시 마루 상태 로드
+fetchAndUpdateMaru();
+
+function chip(e,sm=false){
+  const c=CHIP_CLS[e]||'neu', em=EMOJI[e]||'•';
+  return `<span class="chip chip-${c}${sm?' chip-sm':''}">${em} ${e}</span>`;
+}
+function polIcon(p){return {positive:'☀️',negative:'🌧️',mixed:'🌤️'}[p]||'•';}
+function fmt(dt){
+  if(!dt) return '';
+  const d=new Date(dt); if(isNaN(d)) return dt;
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayStr(){
+  const d=new Date(), days=['일','월','화','수','목','금','토'];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+
+/* ── 핵심: 섹션 전환 ── */
+function go(page){
+  if(cur===page && page!=='write') return;
+  cur=page;
+
+  // 네비 active
+  PAGES.forEach(p=>{
+    document.getElementById('nav-'+p).classList.toggle('active', p===page);
+    document.getElementById('bn-'+p).classList.toggle('active', p===page);
+  });
+  document.getElementById('maruSpeech').textContent = SPEECHES[page]||'';
+
+  // 섹션 show/hide
+  PAGES.forEach(p=>{
+    const L=document.getElementById(p+'-L');
+    const R=document.getElementById(p+'-R');
+    if(L) L.classList.toggle('visible', p===page);
+    if(R) R.classList.toggle('visible', p===page);
+  });
+
+  // 페이지별 데이터 로드
+  if(page==='home')     loadHome();
+  if(page==='library')  loadLibrary();
+  if(page==='emotions') loadEmotions();
+  if(page==='stats')    loadStats();
+}
+
+/* ══ 홈 ══ */
+function loadHome(){
+  document.getElementById('home-date').textContent = todayStr();
+  Promise.all([
+    fetch(`${API}/diaries`).then(r=>r.json()),
+    fetch(`${API}/stats`).then(r=>r.json())
+  ]).then(([diaries, stats])=>{
+    diariesCache=diaries;
+    const top=Object.entries(stats.emotion_freq||{})[0];
+    document.getElementById('hs-total').textContent=stats.total||0;
+    document.getElementById('hs-emo').textContent=top?EMOJI[top[0]]||'😶':'—';
+    document.getElementById('hs-emo-lbl').textContent=top?top[0]:'기록 없음';
+    const entries=document.getElementById('home-entries');
+    if(!diaries.length){
+      entries.innerHTML='<div class="no-data">아직 기록이 없어요.<br>첫 일기를 써볼까요? ✏️</div>';
+      return;
+    }
+    entries.innerHTML=diaries.slice(0,4).map(d=>`
+      <div class="home-entry" onclick="openDiary(${d.id})">
+        <div class="home-entry-date">${fmt(d.created_at)} ${polIcon(d.emotion_polarity)}</div>
+        <div class="home-entry-text">${d.summary||d.text||''}</div>
+      </div>`).join('');
+  }).catch(()=>{
+    document.getElementById('home-entries').innerHTML='<div class="no-data">데이터를 불러올 수 없어요.</div>';
+  });
+}
+function openDiary(id){ selId=id; go('library'); }
+
+/* ══ 일기 쓰기 ══ */
+document.getElementById('diaryInput').addEventListener('input',function(){
+  document.getElementById('charCount').textContent=`${this.value.length} / 2000`;
+});
+
+async function doAnalyze(){
+  const text=(document.getElementById('diaryInput').value||'').trim();
+  if(!text){alert('일기를 먼저 작성해주세요!');return;}
+  const btn=document.getElementById('analyzeBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin">⟳</span> 분석 중…';
+  document.getElementById('feedbackArea').innerHTML=
+    '<div class="ph"><span class="pi spin">⟳</span><p>마루가 일기를 읽고 있어요…<br><small style="opacity:.65">첫 실행 시 30초~1분 소요</small></p></div>';
+  try{
+    const res=await fetch(`${API}/analyze`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    if(!res.ok) throw new Error(`서버 오류 ${res.status}`);
+    renderFeedback(await res.json());
+    diariesCache=null;
+    fetchAndUpdateMaru(); // 일기 저장 후 마루 성장 반영
+  }catch(e){
+    document.getElementById('feedbackArea').innerHTML=`<div class="ph"><span class="pi">⚠️</span><p style="color:#a05030">${e.message}</p></div>`;
+  }finally{
+    btn.disabled=false; btn.textContent='분석하기';
+  }
+}
+
+function renderFeedback(data){
+  const {analysis,maru_memo,ai_connected}=data;
+  const emos=analysis.emotions||[];
+  const pol=analysis.emotion_polarity||'mixed';
+  const inten=analysis.emotion_intensity||'medium';
+  const barW={high:'88%',medium:'52%',low:'22%'}[inten]||'50%';
+  const intLbl={high:'높음 🔥',medium:'보통 🌤️',low:'낮음 🌿'}[inten]||'-';
+  const polLbl={positive:'긍정적 ☀️',negative:'부정적 🌧️',mixed:'복합적 🌤️'}[pol]||'-';
+  const chipsH=emos.length?emos.map(e=>chip(e)).join(''):'<span style="font-size:11px;color:var(--inkf)">감지된 감정 없음</span>';
+  const sumH=analysis.summary?`<div style="font-size:11.5px;color:var(--ink);line-height:1.7;margin-bottom:8px">${analysis.summary}</div><hr class="divider">`:'';
+  const fupH=analysis.followup_question?`<hr class="divider"><div style="font-size:11px;color:var(--inkm);font-style:italic;line-height:1.6;display:flex;gap:5px"><span>💬</span><span>${analysis.followup_question}</span></div>`:'';
+  document.getElementById('feedbackArea').innerHTML=`
+    <div class="scroll fi">
+      ${sumH}
+      <div class="sec-lbl">감지된 감정</div>
+      <div class="chips" style="margin-bottom:9px">${chipsH}</div>
+      <div class="meta-row" style="margin-bottom:6px"><span class="meta-key">감정 극성</span><span>${polLbl}</span></div>
+      <div class="meta-row" style="margin-bottom:10px">
+        <span class="meta-key">감정 강도</span>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${barW}"></div></div>
+        <span style="min-width:54px;font-size:11px">${intLbl}</span>
+      </div>
+      <hr class="divider">
+      <div class="sec-lbl">🐱 마루의 한마디</div>
+      <div class="maru-memo">${maru_memo||'마루가 할 말이 없어요.'}</div>
+      ${fupH}
+      ${ai_connected===false?'<div style="font-size:9.5px;color:rgba(160,100,60,.55);margin-top:6px">⚠️ AI 미연결 — 요약·추가질문은 Vertex AI 설정 후 활성화</div>':''}
+    </div>`;
+}
+
+/* ══ 서재 ══ */
+async function loadLibrary(){
+  if(!diariesCache){
+    try{ diariesCache=await fetch(`${API}/diaries`).then(r=>r.json()); }
+    catch{ document.getElementById('lib-list').innerHTML='<div class="no-data">데이터를 불러올 수 없어요.</div>'; return; }
+  }
+  renderLibList(diariesCache);
+  if(selId){ const d=diariesCache.find(x=>x.id===selId); if(d) selectDiary(d); selId=null; }
+}
+
+function renderLibList(diaries){
+  const el=document.getElementById('lib-list');
+  if(!diaries.length){ el.innerHTML='<div class="no-data">아직 일기가 없어요.<br>첫 일기를 써볼까요? ✏️</div>'; return; }
+  el.innerHTML=diaries.map(d=>{
+    const emos=(d.emotions||[]).slice(0,2).map(e=>chip(e,true)).join('');
+    return `<div class="lib-item" id="li-${d.id}" onclick="selectDiaryById(${d.id})">
+      <div class="lib-row">
+        <span class="lib-date">${fmt(d.created_at)}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span>${polIcon(d.emotion_polarity)}</span>
+          <button class="del-btn" onclick="openDelModal(event,${d.id})" title="삭제">🗑️</button>
+        </div>
+      </div>
+      <div class="lib-summary">${d.summary||d.text?.slice(0,40)||'(내용 없음)'}</div>
+      <div class="chips">${emos}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── 삭제 모달 ── */
+let delTargetId = null;
+
+function openDelModal(e, id){
+  e.stopPropagation(); // 항목 선택 클릭 차단
+  delTargetId = id;
+  const d = diariesCache?.find(x=>x.id===id);
+  document.getElementById('delModalPreview').textContent =
+    d ? (d.summary || d.text?.slice(0,60) || '내용 없음') : '';
+  document.getElementById('delModal').classList.add('open');
+}
+
+function closeDelModal(){
+  document.getElementById('delModal').classList.remove('open');
+  delTargetId = null;
+}
+
+async function confirmDelete(){
+  if(!delTargetId) return;
+  try{
+    const res = await fetch(`${API}/diaries/${delTargetId}`, {method:'DELETE'});
+    if(!res.ok) throw new Error('삭제 실패');
+    // 캐시에서도 제거
+    diariesCache = diariesCache?.filter(x=>x.id!==delTargetId) || null;
+    // 상세창 초기화
+    document.getElementById('lib-detail').innerHTML=
+      '<div class="ph"><span class="pi">🗂️</span><p>왼쪽에서 일기를 선택하세요.</p></div>';
+    // 목록 갱신
+    if(diariesCache) renderLibList(diariesCache);
+    fetchAndUpdateMaru();
+  }catch(err){
+    alert('삭제 중 오류가 발생했어요: '+err.message);
+  }finally{
+    closeDelModal();
+  }
+}
+
+function selectDiaryById(id){
+  const d=diariesCache?.find(x=>x.id===id); if(!d) return;
+  selectDiary(d);
+}
+function selectDiary(d){
+  document.querySelectorAll('.lib-item').forEach(el=>el.classList.remove('sel'));
+  document.getElementById('li-'+d.id)?.classList.add('sel');
+  const emos=(d.emotions||[]).map(e=>chip(e)).join('');
+  const evts=(d.events||[]).map(e=>`<li style="font-size:11px;color:var(--inkm);margin-bottom:3px">${e}</li>`).join('');
+  const polLbl={positive:'긍정적 ☀️',negative:'부정적 🌧️',mixed:'복합적 🌤️'}[d.emotion_polarity]||'-';
+  const intLbl={high:'높음 🔥',medium:'보통 🌤️',low:'낮음 🌿'}[d.emotion_intensity]||'-';
+  document.getElementById('lib-detail').innerHTML=`
+    <div class="scroll fi">
+      <div style="font-size:10px;color:var(--inkf);margin-bottom:8px">${fmt(d.created_at)} · ${polLbl} · ${intLbl}</div>
+      <div class="sec-lbl">원문</div>
+      <div class="lib-text">${d.text||''}</div>
+      ${d.summary?`<div class="sec-lbl">요약</div><div style="font-size:11.5px;color:var(--ink);line-height:1.7;margin-bottom:8px">${d.summary}</div>`:''}
+      <div class="sec-lbl">감지된 감정</div>
+      <div class="chips" style="margin-bottom:9px">${emos||'없음'}</div>
+      ${evts?`<div class="sec-lbl">주요 사건</div><ul style="padding-left:14px;margin-bottom:9px">${evts}</ul>`:''}
+      ${d.followup_question?`<div class="sec-lbl">추가 질문</div><div style="font-size:11px;color:var(--inkm);font-style:italic">💬 ${d.followup_question}</div>`:''}
+    </div>`;
+}
+
+/* ══ 감정 도감 ══ */
+function loadEmotions(){
+  // 왼쪽: 도감 그리드 (정적)
+  document.getElementById('emo-grid').innerHTML=Object.keys(EMOJI).map(e=>`
+    <div class="emo-card">
+      <span class="emo-emoji">${EMOJI[e]}</span>
+      <div><div class="emo-name">${e}</div><div class="emo-desc">${EMO_DESC[e]||''}</div></div>
+    </div>`).join('');
+
+  // 오른쪽: 빈도 차트 (동적)
+  fetch(`${API}/stats`).then(r=>r.json()).then(stats=>{
+    const freq=Object.entries(stats.emotion_freq||{});
+    const el=document.getElementById('emo-freq');
+    if(!freq.length){ el.innerHTML='<div class="no-data">아직 분석된 일기가 없어요.<br>일기를 쓰고 분석해보세요! ✏️</div>'; return; }
+    const mx=Math.max(...freq.map(([,v])=>v));
+    el.innerHTML=`<div class="fi">${freq.map(([e,c])=>`
+      <div class="freq-row">
+        <span class="freq-lbl">${EMOJI[e]||'•'} ${e}</span>
+        <div class="freq-bar"><div class="freq-fill" style="width:${Math.round(c/mx*100)}%"></div></div>
+        <span class="freq-cnt">${c}</span>
+      </div>`).join('')}</div>`;
+  }).catch(()=>{ document.getElementById('emo-freq').innerHTML='<div class="no-data">데이터 없음</div>'; });
+}
+
+/* ══ 통계 ══ */
+function loadStats(){
+  fetch(`${API}/stats`).then(r=>r.json()).then(stats=>{
+    const lEl=document.getElementById('stats-left-content');
+    const rEl=document.getElementById('stats-right-content');
+    if(!stats.total){
+      lEl.innerHTML='<div class="no-data" style="padding-top:20px">아직 기록이 없어요.<br>일기를 써보세요! ✏️</div>';
+      rEl.innerHTML='<div class="no-data">데이터 없음</div>'; return;
+    }
+    const pol=stats.polarity_dist||{}, pTotal=Object.values(pol).reduce((a,b)=>a+b,0)||1;
+    function polBar(key,cls,lbl){
+      const c=pol[key]||0, pct=Math.round(c/pTotal*100);
+      return `<div class="pol-row"><span class="pol-lbl">${lbl}</span>
+        <div class="pol-bar"><div class="${cls}" style="width:${pct}%"></div></div>
+        <span class="pol-cnt">${c}</span></div>`;
+    }
+    const inten=stats.intensity_dist||{}, iTotal=Object.values(inten).reduce((a,b)=>a+b,0)||1;
+    function intBar(key,cls,lbl){
+      const c=inten[key]||0, pct=Math.round(c/iTotal*100);
+      return `<div class="pol-row"><span class="pol-lbl">${lbl}</span>
+        <div class="pol-bar"><div class="${cls}" style="width:${pct}%"></div></div>
+        <span class="pol-cnt">${c}</span></div>`;
+    }
+    lEl.innerHTML=`<div class="fi">
+      <div class="stat-big"><div class="stat-big-num">${stats.total}</div><div class="stat-big-lbl">총 기록한 일기</div></div>
+      <hr class="divider">
+      <div class="sec-lbl">감정 극성 분포</div>
+      ${polBar('positive','pf-pos','긍정 ☀️')}${polBar('negative','pf-neg','부정 🌧️')}${polBar('mixed','pf-mix','복합 🌤️')}
+      <hr class="divider">
+      <div class="sec-lbl">감정 강도 분포</div>
+      ${intBar('high','pf-pos','높음 🔥')}${intBar('medium','pf-mix','보통 🌤️')}${intBar('low','pf-neg','낮음 🌿')}
+    </div>`;
+    const freq=Object.entries(stats.emotion_freq||{});
+    const mx=Math.max(...freq.map(([,v])=>v),1);
+    rEl.innerHTML=freq.length?`<div class="fi">${freq.map(([e,c],i)=>`
+      <div class="top-row">
+        <span style="font-size:10px;color:var(--inkf);min-width:14px">${i+1}</span>
+        <span class="top-em">${EMOJI[e]||'•'}</span>
+        <span class="top-nm">${e}</span>
+        <div class="top-bar"><div class="top-fill" style="width:${Math.round(c/mx*100)}%"></div></div>
+        <span class="top-cnt">${c}</span>
+      </div>`).join('')}</div>`:'<div class="no-data">데이터 없음</div>';
+  }).catch(()=>{
+    document.getElementById('stats-left-content').innerHTML='<div class="no-data">데이터 없음</div>';
+  });
+}
+</script>
+</body>
+</html>
