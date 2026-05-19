@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Read:Me</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidden;background:#060302;}
+
+    .bg{position:fixed;inset:0;z-index:0;overflow:hidden;}
+    .bg::before{content:'';position:absolute;inset:-2%;
+      background:url('/img/GPLback.png') center/cover no-repeat;
+      filter:brightness(.68) saturate(.9);transform:scale(1.04);}
+    .bg::after{content:'';position:absolute;inset:0;
+      background:
+        linear-gradient(90deg,rgba(0,0,0,.60) 0%,rgba(0,0,0,.20) 30%,rgba(0,0,0,.15) 65%,rgba(0,0,0,.55) 100%),
+        linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.50));}
+
+    .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+    /* ── 카드 ── */
+    .card{
+      width:min(340px,88vw);
+      background:rgba(6,4,1,.82);
+      border:1px solid rgba(190,132,58,.45);
+      border-radius:8px;
+      padding:38px 30px 28px;
+      box-shadow:
+        0 0 0 1px rgba(100,60,10,.15) inset,
+        0 20px 60px rgba(0,0,0,.75),
+        0 0 40px rgba(140,90,20,.08);
+    }
+
+    /* ── 로고 ── */
+    .logo-area{text-align:center;margin-bottom:26px;}
+    .logo{font-size:42px;color:#d39a55;font-weight:400;letter-spacing:2px;text-shadow:0 2px 14px rgba(0,0,0,.8);}
+    .logo-sub{font-size:11.5px;color:rgba(210,165,85,.62);letter-spacing:.3px;margin-top:7px;line-height:1.6;}
+
+    /* ── 구분선 제목 ── */
+    .sec-head{
+      display:flex;align-items:center;gap:8px;
+      font-size:11px;color:rgba(190,132,58,.55);letter-spacing:.8px;
+      margin-bottom:18px;
+    }
+    .sec-head::before,.sec-head::after{content:'';flex:1;height:1px;background:rgba(190,132,58,.22);}
+
+    /* ── 인풋 ── */
+    .input-group{margin-bottom:10px;}
+    .input-wrap{position:relative;display:flex;align-items:center;}
+    .input-icon{position:absolute;left:12px;font-size:13px;opacity:.45;pointer-events:none;}
+    .login-input{
+      width:100%;
+      background:rgba(255,255,255,.055);
+      border:1px solid rgba(190,132,58,.26);
+      border-radius:5px;
+      padding:10px 12px 10px 36px;
+      font-family:'Gowun Batang',serif;
+      font-size:13px;color:#f2e3c7;outline:none;
+      transition:border-color .15s,background .15s;
+    }
+    .login-input::placeholder{color:rgba(242,227,199,.32);}
+    .login-input:focus{border-color:rgba(201,168,76,.52);background:rgba(255,255,255,.08);}
+
+    /* ── 버튼 ── */
+    .login-btn{
+      width:100%;
+      background:linear-gradient(180deg,#8a6028,#5c3e18);
+      border:1px solid rgba(230,181,98,.28);
+      color:#f5dfac;
+      padding:11px;border-radius:5px;
+      font-family:'Gowun Batang',serif;font-size:13.5px;
+      cursor:pointer;letter-spacing:.8px;
+      box-shadow:inset 0 1px rgba(255,255,255,.10),0 4px 14px rgba(0,0,0,.4);
+      transition:all .15s;margin-top:6px;
+    }
+    .login-btn:hover{background:linear-gradient(180deg,#9e7030,#6c481e);transform:translateY(-1px);}
+
+    .or-row{
+      display:flex;align-items:center;gap:10px;
+      margin:14px 0;
+      color:rgba(190,132,58,.42);font-size:11px;letter-spacing:.3px;
+    }
+    .or-row::before,.or-row::after{content:'';flex:1;height:1px;background:rgba(190,132,58,.20);}
+
+    .start-btn{
+      width:100%;
+      background:rgba(20,12,4,.55);
+      border:1px solid rgba(190,132,58,.35);
+      color:#f0d9a8;
+      padding:11px;border-radius:5px;
+      font-family:'Gowun Batang',serif;font-size:13px;
+      cursor:pointer;letter-spacing:.3px;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      transition:all .15s;
+    }
+    .start-btn:hover{background:rgba(35,20,6,.80);border-color:rgba(201,168,76,.52);}
+
+    .footer-txt{text-align:center;margin-top:16px;font-size:11px;color:rgba(190,132,58,.42);}
+    .footer-txt a{color:rgba(201,168,76,.62);text-decoration:none;transition:color .15s;}
+    .footer-txt a:hover{color:#c9a84c;}
+
+    .err{font-size:11px;color:rgba(200,80,60,.75);text-align:center;margin-top:6px;
+      min-height:16px;transition:opacity .2s;}
+    .err.hide{opacity:0;}
+
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .card{animation:fadeIn .4s ease both;}
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+  <div class="card">
+    <div class="logo-area">
+      <div class="logo">Read:Me</div>
+      <div class="logo-sub">과거의 나를 읽고,<br>오늘의 나를 돌보는 공간</div>
+    </div>
+
+    <div class="sec-head">로그인</div>
+
+    <div class="input-group">
+      <div class="input-wrap">
+        <span class="input-icon">👤</span>
+        <input type="text" class="login-input" id="nameInput" placeholder="아이디를 입력해주세요" autocomplete="username"/>
+      </div>
+    </div>
+    <div class="input-group">
+      <div class="input-wrap">
+        <span class="input-icon">🔒</span>
+        <input type="password" class="login-input" id="pwInput" placeholder="비밀번호를 입력해주세요" autocomplete="current-password"/>
+      </div>
+    </div>
+
+    <button class="login-btn" onclick="doLogin()">로그인</button>
+    <div class="err hide" id="errMsg"></div>
+
+    <div class="or-row">또는</div>
+
+    <button class="start-btn" onclick="goSetup()">
+      <img src="/img/maru1.png" style="width:22px;height:22px;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))"/>
+      마루와 함께 시작하기
+    </button>
+
+    <div class="footer-txt">계정이 없으신가요? <a href="/setup">회원가입</a></div>
+  </div>
+</div>
+
+<script>
+// 기존 유저 이름 자동 완성
+try {
+  const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
+  if(u.setupDone) document.getElementById('nameInput').value = u.name;
+} catch(e) {}
+
+function doLogin() {
+  const name = document.getElementById('nameInput').value.trim();
+  if(!name) { showErr('이름을 입력해주세요.'); return; }
+  try {
+    const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
+    if(u.setupDone) {
+      if(u.name === name) { window.location.href = '/app'; return; }
+      showErr(`"${name}"? 이름을 다시 확인해줘.`); return;
+    }
+  } catch(e) {}
+  // 등록된 유저 없으면 → 셋업으로
+  window.location.href = '/setup';
+}
+
+function goSetup() { window.location.href = '/setup'; }
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg;
+  el.classList.remove('hide');
+  setTimeout(() => el.classList.add('hide'), 3000);
+}
+
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') document.getElementById('pwInput').focus();
+});
+document.getElementById('pwInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>

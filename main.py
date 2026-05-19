@@ -42,7 +42,17 @@ app.mount("/img", StaticFiles(directory=BASE_DIR), name="img")
 
 @app.get("/")
 def root():
+    return FileResponse(BASE_DIR / "login.html")
+
+
+@app.get("/app")
+def app_page():
     return FileResponse(BASE_DIR / "index.html")
+
+
+@app.get("/setup")
+def setup_page():
+    return FileResponse(BASE_DIR / "setup.html")
 
 
 _genai_client = None

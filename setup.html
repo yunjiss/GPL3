@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Read:Me — 시작 대화</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidden;background:#060302;}
+
+    /* ── 배경 ── */
+    .bg{position:fixed;inset:0;z-index:0;overflow:hidden;}
+    .bg::before{content:'';position:absolute;inset:-2%;
+      background:url('/img/GPLback.png') center/cover no-repeat;
+      filter:brightness(.68) saturate(.9);transform:scale(1.04);}
+    .bg::after{content:'';position:absolute;inset:0;
+      background:
+        linear-gradient(90deg,rgba(0,0,0,.60) 0%,rgba(0,0,0,.20) 30%,rgba(0,0,0,.15) 65%,rgba(0,0,0,.55) 100%),
+        linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.50));}
+
+    /* ── 앱 ── */
+    .app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;}
+
+    /* ── 상단 로고 ── */
+    .title-area{text-align:center;margin-bottom:16px;}
+    .logo{font-size:30px;color:#d39a55;font-weight:400;letter-spacing:2px;text-shadow:0 2px 10px rgba(0,0,0,.7);}
+    .pg-title{font-size:11px;color:rgba(210,165,85,.55);letter-spacing:1px;margin-top:4px;}
+
+    /* ── 채팅 컨테이너 ── */
+    .chat-wrap{
+      display:flex;gap:14px;
+      width:min(720px,92vw);
+      height:min(560px,75vh);
+    }
+
+    /* ── 마루 패널 ── */
+    .maru-col{
+      flex-shrink:0;width:100px;
+      display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+      padding-bottom:14px;gap:6px;
+    }
+    .maru-img{
+      width:100px;height:100px;
+      background:url('/img/maru1.png') no-repeat center/contain;
+      filter:drop-shadow(0 4px 14px rgba(0,0,0,.8)) drop-shadow(0 0 8px rgba(180,130,40,.3));
+      transition:transform .3s;
+    }
+    @keyframes marubounce{0%,100%{transform:translateY(0) scale(1)}40%{transform:translateY(-9px) scale(1.04)}}
+    .maru-img.bounce{animation:marubounce .55s ease;}
+    .maru-tag{
+      padding:3px 10px;
+      background:rgba(20,11,4,.86);
+      border:1px solid rgba(204,147,61,.48);
+      font-size:11px;font-weight:700;color:#f3d397;
+      letter-spacing:.3px;white-space:nowrap;
+    }
+
+    /* ── 채팅 패널 ── */
+    .chat-panel{
+      flex:1;display:flex;flex-direction:column;
+      background:rgba(7,4,1,.80);
+      border:1px solid rgba(190,132,58,.38);
+      border-radius:10px;
+      overflow:hidden;
+      box-shadow:0 10px 40px rgba(0,0,0,.65);
+    }
+    .chat-hdr{
+      padding:10px 18px;
+      border-bottom:1px solid rgba(190,132,58,.18);
+      font-size:12px;color:#e8c87a;letter-spacing:.6px;
+      background:rgba(0,0,0,.22);flex-shrink:0;
+    }
+
+    /* ── 메시지 ── */
+    .messages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:9px;}
+    .messages::-webkit-scrollbar{width:3px;}
+    .messages::-webkit-scrollbar-thumb{background:rgba(160,120,60,.28);border-radius:2px;}
+
+    .msg-maru{align-self:flex-start;max-width:85%;}
+    .msg-user{align-self:flex-end;max-width:72%;}
+
+    .bub-maru{
+      background:rgba(30,17,6,.90);
+      border:1px solid rgba(190,132,58,.30);
+      border-radius:3px 12px 12px 12px;
+      padding:10px 14px;font-size:13px;color:#f2e3c7;line-height:1.68;
+    }
+    .bub-user{
+      background:linear-gradient(135deg,rgba(88,52,14,.86),rgba(112,72,18,.82));
+      border:1px solid rgba(220,170,70,.28);
+      border-radius:12px 3px 12px 12px;
+      padding:10px 14px;font-size:13px;color:#fff0d0;line-height:1.68;
+    }
+
+    /* ── 타이핑 인디케이터 ── */
+    .typing-bub{
+      background:rgba(30,17,6,.90);
+      border:1px solid rgba(190,132,58,.30);
+      border-radius:3px 12px 12px 12px;
+      padding:10px 16px;
+      display:inline-flex;gap:5px;align-items:center;
+    }
+    .dot{width:7px;height:7px;border-radius:50%;background:#c9a84c;animation:dotpulse 1.2s infinite;}
+    .dot:nth-child(2){animation-delay:.22s;}
+    .dot:nth-child(3){animation-delay:.44s;}
+    @keyframes dotpulse{0%,80%,100%{transform:scale(.65);opacity:.35}40%{transform:scale(1);opacity:1}}
+
+    /* ── 인풋 영역 ── */
+    .input-area{padding:11px 15px;border-top:1px solid rgba(190,132,58,.18);background:rgba(0,0,0,.22);flex-shrink:0;}
+    .text-row{display:flex;gap:8px;}
+    .chat-input{
+      flex:1;
+      background:rgba(255,255,255,.065);
+      border:1px solid rgba(190,132,58,.28);
+      border-radius:20px;
+      padding:9px 16px;
+      font-family:'Gowun Batang',serif;font-size:13px;color:#f2e3c7;outline:none;
+      transition:border-color .15s;
+    }
+    .chat-input::placeholder{color:rgba(242,227,199,.32);}
+    .chat-input:focus{border-color:rgba(201,168,76,.55);}
+    .send-btn{
+      background:linear-gradient(135deg,#c9a84c,#9e7428);
+      border:none;color:#fff;
+      width:38px;height:38px;border-radius:50%;
+      font-size:18px;cursor:pointer;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      transition:transform .14s,box-shadow .14s;
+      box-shadow:0 3px 10px rgba(0,0,0,.3);
+    }
+    .send-btn:hover{transform:scale(1.1);box-shadow:0 4px 14px rgba(0,0,0,.4);}
+
+    /* ── MBTI 그리드 ── */
+    .mbti-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+    .mbti-btn{
+      background:rgba(28,16,5,.80);
+      border:1px solid rgba(190,132,58,.30);
+      border-radius:5px;padding:7px 2px;
+      font-size:11.5px;color:#f0d9a8;cursor:pointer;
+      text-align:center;transition:all .14s;
+      font-family:'Gowun Batang',serif;
+    }
+    .mbti-btn:hover{background:rgba(88,52,14,.82);border-color:rgba(220,170,70,.6);color:#fff;}
+
+    /* ── 시작 버튼 ── */
+    .start-btn{
+      width:100%;
+      background:linear-gradient(135deg,#c9a84c,#9e7428);
+      border:none;color:#fff;
+      padding:12px;border-radius:24px;
+      font-family:'Gowun Batang',serif;font-size:14px;font-weight:700;
+      cursor:pointer;letter-spacing:.8px;
+      box-shadow:0 4px 18px rgba(0,0,0,.4);transition:all .18s;
+    }
+    .start-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(0,0,0,.5);}
+
+    @keyframes fadeup{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    .fi{animation:fadeup .28s ease both;}
+    .hidden{display:none!important;}
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+
+  <div class="title-area">
+    <div class="logo">Read:Me</div>
+    <div class="pg-title">— 시작 대화 —</div>
+  </div>
+
+  <div class="chat-wrap">
+
+    <!-- 마루 캐릭터 -->
+    <div class="maru-col">
+      <div class="maru-img" id="maruImg"></div>
+      <div class="maru-tag">마루</div>
+    </div>
+
+    <!-- 채팅 패널 -->
+    <div class="chat-panel">
+      <div class="chat-hdr">📚 마루와의 첫 만남</div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="input-area" id="inputArea">
+        <!-- 텍스트 입력 -->
+        <div class="text-row hidden" id="textRow">
+          <input type="text" class="chat-input" id="chatInput" placeholder="여기에 입력해줘..." maxlength="50" autocomplete="off"/>
+          <button class="send-btn" id="sendBtn" onclick="sendText()">↵</button>
+        </div>
+        <!-- MBTI 선택 -->
+        <div class="hidden" id="mbtiRow">
+          <div class="mbti-grid" id="mbtiGrid"></div>
+        </div>
+        <!-- 완료 버튼 -->
+        <div class="hidden" id="startRow">
+          <button class="start-btn" onclick="goApp()">도서관 열어보기 ✨</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const MBTI_LIST = ['INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP'];
+const MBTI_DESC = {
+  'INTJ':'전략가','INTP':'논리술사','ENTJ':'통솔자','ENTP':'변론가',
+  'INFJ':'옹호자','INFP':'중재자','ENFJ':'선도자','ENFP':'활동가',
+  'ISTJ':'물류관리자','ISFJ':'수호자','ESTJ':'경영자','ESFJ':'집정관',
+  'ISTP':'장인','ISFP':'모험가','ESTP':'기업가','ESFP':'연예인'
+};
+const MBTI_COMMENT = {
+  'INTJ':'전략적이고 독립적인 성격이네','INTP':'논리적이고 탐구적인 타입이구나',
+  'ENTJ':'리더십이 넘치는 통솔자네','ENTP':'창의적이고 도전적인 변론가구나',
+  'INFJ':'깊은 통찰을 가진 타입이네','INFP':'풍부한 감수성을 가진 몽상가구나',
+  'ENFJ':'따뜻하고 공감 능력이 넘치네','ENFP':'자유롭고 열정적인 영혼이구나',
+  'ISTJ':'믿음직하고 체계적인 성격이네','ISFJ':'배려심 깊고 헌신적인 수호자네',
+  'ESTJ':'체계적이고 결단력 있는 경영자네','ESFJ':'따뜻하고 사교적인 집정관이네',
+  'ISTP':'분석적이고 실용적인 장인이구나','ISFP':'섬세하고 예술적인 감각이 있구나',
+  'ESTP':'모험적이고 현실적인 기업가구나','ESFP':'활기차고 즐거운 에너지를 가졌구나'
+};
+
+let step = 0, userName = '', userMBTI = '';
+const msgsEl = document.getElementById('messages');
+const maruEl = document.getElementById('maruImg');
+
+// 이미 설정 완료된 유저 → 앱으로
+try {
+  const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
+  if(u.setupDone) window.location.href = '/app';
+} catch(e) {}
+
+// MBTI 그리드 생성
+document.getElementById('mbtiGrid').innerHTML = MBTI_LIST.map(t =>
+  `<button class="mbti-btn" onclick="selectMBTI('${t}')">${t}</button>`
+).join('');
+
+/* ── 유틸 ── */
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+function scrollBot() { msgsEl.scrollTop = msgsEl.scrollHeight; }
+
+function addMsg(type, html) {
+  const d = document.createElement('div');
+  d.className = `msg-${type} fi`;
+  d.innerHTML = type === 'maru'
+    ? `<div class="bub-maru">${html}</div>`
+    : `<div class="bub-user">${html}</div>`;
+  msgsEl.appendChild(d);
+  scrollBot();
+}
+
+function bounce() {
+  maruEl.classList.remove('bounce');
+  void maruEl.offsetWidth;
+  maruEl.classList.add('bounce');
+}
+
+async function maruSay(html, ms = 900) {
+  const ind = document.createElement('div');
+  ind.className = 'msg-maru';
+  ind.innerHTML = '<div class="typing-bub"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
+  msgsEl.appendChild(ind);
+  scrollBot();
+  await wait(ms);
+  ind.remove();
+  addMsg('maru', html);
+  bounce();
+  await wait(120);
+}
+
+function showOnly(id) {
+  ['textRow','mbtiRow','startRow'].forEach(r =>
+    document.getElementById(r).classList.toggle('hidden', r !== id)
+  );
+}
+
+/* ── 대화 흐름 ── */
+async function start() {
+  await wait(500);
+  await maruSay('안녕! 나는 <strong>마루</strong>야 🦉<br>네 이야기를 기다리던 도서관 부엉이야.', 1000);
+  await wait(250);
+  await maruSay('Read:Me는 네가 쓴 일기를 통해<br>감정을 분석하고, 과거의 기억과<br>연결해주는 공간이야.', 1400);
+  await wait(250);
+  await maruSay('같이 시작하기 전에,<br>너에 대해 조금 알고 싶어 🌙', 950);
+  await wait(250);
+  await maruSay('먼저, 내가 너를 어떻게 불러드릴까?<br><span style="font-size:11px;opacity:.6">이름이나 닉네임을 알려줘!</span>', 1200);
+  showOnly('textRow');
+  document.getElementById('chatInput').focus();
+  step = 1;
+}
+
+async function onName(name) {
+  showOnly('');
+  addMsg('user', name);
+  userName = name;
+  await wait(220);
+  await maruSay(`${name}! 좋은 이름이야 🌟<br>앞으로 잘 부탁해!`, 1000);
+  await wait(250);
+  await maruSay('하나만 더 물어볼게.<br>너의 MBTI가 뭐야? 🦉<br><span style="font-size:11px;opacity:.6">아래에서 선택해줘!</span>', 1300);
+  showOnly('mbtiRow');
+  step = 2;
+}
+
+async function onMBTI(mbti) {
+  showOnly('');
+  addMsg('user', `${mbti} · ${MBTI_DESC[mbti] || ''}`);
+  userMBTI = mbti;
+  await wait(220);
+  await maruSay(`${mbti}이구나! ${MBTI_COMMENT[mbti] || '멋진 타입이구나'} ✨`, 1050);
+  await wait(250);
+  await maruSay(`${userName}의 이야기를 들을 준비가 다 됐어.<br>언제든 털어놔, 내가 항상 여기 있을게 🌙`, 1350);
+  localStorage.setItem('readme_user', JSON.stringify({
+    name: userName, mbti: userMBTI, setupDone: true, createdAt: new Date().toISOString()
+  }));
+  await wait(350);
+  showOnly('startRow');
+  step = 3;
+}
+
+/* ── 이벤트 ── */
+function sendText() {
+  if(step !== 1) return;
+  const v = document.getElementById('chatInput').value.trim();
+  if(!v) return;
+  document.getElementById('chatInput').value = '';
+  onName(v);
+}
+
+function selectMBTI(mbti) {
+  if(step !== 2) return;
+  onMBTI(mbti);
+}
+
+function goApp() { window.location.href = '/app'; }
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') sendText();
+});
+
+start();
+</script>
+</body>
+</html>
