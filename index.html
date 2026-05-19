@@ -27,7 +27,7 @@
       display:flex;align-items:flex-start;justify-content:space-between;}
     .logo{font-size:44px;line-height:1;color:#d39a55;font-weight:400;letter-spacing:1px;
       text-shadow:0 2px 12px rgba(0,0,0,.7);}
-    .logo::after{content:'🪶';font-size:26px;margin-left:8px;opacity:.40;vertical-align:top;}
+    .logo::after{content:'';}
     .logo-sub{font-size:14px;color:#e0ae61;letter-spacing:.4px;margin-top:6px;text-shadow:0 2px 8px #000;}
     .topbar-left::after{content:'';display:block;width:160px;height:20px;margin-top:14px;
       background:
@@ -111,13 +111,8 @@
       filter:blur(.1px);}
 
     /* 책갈피 탭 */
-    .book-tab{position:absolute;left:25%;top:-52px;transform:translateX(-50%);
-      width:72px;height:62px;z-index:10;pointer-events:none;
-      background:linear-gradient(180deg,#11599f,#0a3768);
-      clip-path:polygon(0 0,100% 0,100% 88%,50% 70%,0 88%);
-      box-shadow:0 6px 12px rgba(0,0,0,.42),inset 0 0 0 1px rgba(255,255,255,.14);
-      display:none;}
-    .book-tab.visible{display:block;}
+    .book-tab{display:none !important;}
+    .book-tab.visible{display:none !important;}
     .book-tab-icon{position:absolute;left:50%;top:10px;transform:translateX(-50%);
       width:42px;height:42px;border:1px solid rgba(238,224,181,.55);border-radius:50%;
       display:flex;align-items:center;justify-content:center;
@@ -677,7 +672,7 @@ function renderFeedback(data){
       <div class="sec-lbl">🐱 마루의 한마디</div>
       <div class="maru-memo">${maru_memo||'마루가 할 말이 없어요.'}</div>
       ${fupH}
-      ${ai_connected===false?'<div style="font-size:9px;color:rgba(160,100,60,.55);margin-top:5px">⚠️ AI 미연결 — Vertex AI 설정 후 활성화</div>':''}
+      ${ai_connected===false?'<div style="font-size:9px;color:rgba(160,100,60,.55);margin-top:5px">⚠️ AI 미연결 — .env에 GOOGLE_API_KEY를 추가하세요 (<a href="https://aistudio.google.com/apikey" target="_blank" style="color:inherit">발급</a>)</div>':''}
     </div>`;
 }
 

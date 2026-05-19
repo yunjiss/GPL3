@@ -1,14 +1,23 @@
-from vertexai.generative_models import GenerativeModel, GenerationConfig
+import os
+from google import genai
+from google.genai import types as genai_types
 
-# vertexai.init()은 main.py 시작 시 1회 호출됨
-_model = None
+_client = None
 
 
-def _load():
-    global _model
-    if _model is None:
-        _model = GenerativeModel("gemini-1.5-flash")
-    return _model
+def _load() -> genai.Client:
+    global _client
+    if _client is None:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            _client = genai.Client(api_key=api_key)
+        else:
+            _client = genai.Client(
+                vertexai=True,
+                project=os.getenv("VERTEX_PROJECT_ID"),
+                location=os.getenv("VERTEX_LOCATION", "asia-northeast3"),
+            )
+    return _client
 
 
 def generate_maru(current: dict, past_diaries: list[dict]) -> str:
@@ -40,8 +49,9 @@ def generate_maru(current: dict, past_diaries: list[dict]) -> str:
 
 메시지:"""
 
-    response = _load().generate_content(
-        prompt,
-        generation_config=GenerationConfig(temperature=0.4),
+    response = _load().models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=genai_types.GenerateContentConfig(temperature=0.4),
     )
     return response.text
