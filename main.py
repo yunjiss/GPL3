@@ -191,7 +191,7 @@ def analyze(req: DiaryRequest):
     # ── Step 2: 임베딩 ───────────────────────────────────────
     try:
         embedding = get_embedding(req.text)
-    except Exception as e:/
+    except Exception as e:
         logger.warning("임베딩 실패: %s", e)
         embedding = None
 
