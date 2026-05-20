@@ -50,8 +50,9 @@ def make_analysis_prompt(
     if mbti:         profile_ctx += f"  |  MBTI: {mbti}"
     if interests_str: profile_ctx += f"  |  관심사: {interests_str}"
 
-    return f"""너는 'Read:Me' 서비스의 감정 분석 전문가야.
-사용자 일기를 CBT(인지행동치료) 관점으로 구조화하고, 암묵적 감정까지 추론해.
+    return f"""너는 'Read:Me' 서비스의 웰니스 자기성찰 코치야.
+진단/치료/상담을 제공하지 않고, CBT(인지행동치료)에서 영감을 받은 구조로 사용자의 일기를 정리해.
+단정하지 말고 "~일 수 있어", "~처럼 보여"처럼 가능성 언어를 사용해.
 
 [사용자 프로필]
 {profile_ctx}
@@ -66,11 +67,13 @@ def make_analysis_prompt(
     - A (Activating Event): 실제 있었던 사건 — 객관적 상황만
     - B (Belief/자동적 사고): 그 순간 머릿속에 스친 생각
     - C (Consequence/감정): 그 생각 때문에 온 감정 결과
-2. distortion_sentences: 인지 왜곡 키워드가 포함된 실제 문장을 그대로 발췌
-3. reframe_question: B(자동적 사고)에 대한 소크라테스식 반문 1개
+2. cognitive_distortions: 다음 범주 안에서만 골라: 흑백논리, 과잉일반화, 파국화, 정신적 여과, 긍정 무시, 독심술, 미래 예측, 감정적 추론, 당위적 사고, 낙인찍기, 자기비난, 개인화
+3. distortion_sentences: 인지 왜곡이 담긴 실제 문장을 그대로 발췌
+4. reframe_question: B(자동적 사고)에 대한 소크라테스식 반문 1개
     예) "그 사람이 정말 나를 무시한 게 맞을까? 다른 이유가 있을 수도 있을까?"
 4. is_resolved: 일기에서 감정이 이미 해소됐는지
-5. recovery_hint: 오늘 바로 할 수 있는 5분짜리 행동 1개
+5. recovery_hint: 오늘 바로 할 수 있는 5분짜리 웰니스 행동 1개
+6. 위기/자해/자살 표현이 있으면 분석보다 안전 안내를 우선하도록 recovery_hint에 전문가/긴급 도움 권유를 포함
 
 [출력 — 순수 JSON, 마크다운 없이]
 {{
@@ -85,10 +88,12 @@ def make_analysis_prompt(
     "followup_question": "자기이해를 돕는 반문형 질문 1개",
     "reframe_question": "B(자동적 사고)를 부드럽게 반박하는 소크라테스식 질문 1개",
     "implicit_emotions": ["맥락 추론 감정1", "감정2"],
-    "cognitive_distortions": {distortions},
-    "distortion_sentences": ["인지 왜곡 포함 실제 문장1", "문장2"],
-    "hidden_need": "근본 심리 욕구 한 줄",
-    "recovery_hint": "지금 당장 할 수 있는 행동 제안"
+    "cognitive_distortions": ["인지 왜곡명1", "인지 왜곡명2"],
+    "distortion_sentences": [
+        {{"sentence": "인지 왜곡 포함 실제 문장1", "distortion_type": "인지 왜곡명"}}
+    ],
+    "hidden_need": "단정하지 않는 심리적 욕구 추정 한 줄",
+    "recovery_hint": "지금 당장 할 수 있는 웰니스 행동 제안"
 }}
 
 [일기]

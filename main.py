@@ -23,6 +23,7 @@ from ner import extract_persons
 from embedding import get_embedding
 from vector_db import add as vector_add, find_similar
 from prompt import make_analysis_prompt
+from cbt import classify_cognitive_distortions
 from maru import generate_maru
 from db import save_diary, get_all_diaries, get_diary_by_id, delete_diary
 from utils import safe_parse
@@ -208,8 +209,12 @@ def analyze(req: DiaryRequest):
         "followup_question":     None,
         "implicit_emotions":     [],
         "cognitive_distortions": [],
+        "distortion_sentences":  [],
+        "abc":                  {"A": None, "B": None, "C": None},
+        "reframe_question":     None,
         "hidden_need":           None,
         "recovery_hint":         None,
+        "cbt_model":            None,
         "is_resolved":           False,
         "emotions":              emotion_data["emotions"],
         "persons":               persons,
@@ -217,11 +222,18 @@ def analyze(req: DiaryRequest):
         "emotion_polarity":      emotion_data["emotion_polarity"],
     }
 
+    # ── Step 4a: 로컬 HF — CBT 인지 왜곡 후보 분류 ─────────
+    try:
+        cbt_data = classify_cognitive_distortions(req.text)
+        analysis.update({k: v for k, v in cbt_data.items() if v})
+    except Exception as e:
+        logger.warning("CBT 분류 실패: %s", e)
+
     emotions_str = ", ".join(emotion_data["emotions"]) or "다양한"
     maru_memo    = f"{user_name}아, 오늘 {emotions_str} 감정이 느껴졌구나. 오늘도 수고했어."
     ai_available = False
 
-    # ── Step 4a: Gemini — 구조적 분석 ────────────────────────
+    # ── Step 4b: Gemini — 구조적 분석 ────────────────────────
     try:
         analysis_prompt = make_analysis_prompt(
             req.text,
@@ -242,16 +254,19 @@ def analyze(req: DiaryRequest):
             "events":                parsed.get("events", []),
             "followup_question":     parsed.get("followup_question"),
             "implicit_emotions":     parsed.get("implicit_emotions", []),
-            "cognitive_distortions": parsed.get("cognitive_distortions", []),
+            "cognitive_distortions": parsed.get("cognitive_distortions") or analysis.get("cognitive_distortions", []),
+            "distortion_sentences":  parsed.get("distortion_sentences") or analysis.get("distortion_sentences", []),
+            "abc":                  parsed.get("abc") or analysis.get("abc"),
+            "reframe_question":     parsed.get("reframe_question") or analysis.get("reframe_question"),
             "hidden_need":           parsed.get("hidden_need"),
-            "recovery_hint":         parsed.get("recovery_hint"),
+            "recovery_hint":         parsed.get("recovery_hint") or analysis.get("recovery_hint"),
             "is_resolved":           bool(parsed.get("is_resolved", False)),
         })
         ai_available = True
     except Exception as e:
         logger.warning("Gemini 분석 실패: %s", e)
 
-    # ── Step 4b: 마루 메시지 생성 ─────────────────────────────
+    # ── Step 4c: 마루 메시지 생성 ─────────────────────────────
     try:
         maru_memo = generate_maru(
             analysis,
@@ -286,6 +301,7 @@ def analyze(req: DiaryRequest):
 
     best = similar_diaries[0] if similar_diaries else None
     return {
+        "diary_id":  diary_id,
         "analysis":  analysis,
         "maru_memo": maru_memo,
         "past_connection": {

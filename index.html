@@ -245,6 +245,8 @@
       border-radius:3px 5px 5px 3px;padding:8px 10px;margin-bottom:7px;}
     .cbt-title{font-size:10px;font-weight:700;color:#6a2090;margin-bottom:5px;letter-spacing:.3px;}
     .cbt-hint{font-size:9.5px;color:rgba(106,32,144,.60);line-height:1.5;margin-top:4px;}
+    .wellness-note{font-size:9px;color:rgba(92,61,40,.58);line-height:1.55;margin-top:6px;
+      background:rgba(255,255,255,.18);border:1px solid rgba(160,120,60,.18);border-radius:4px;padding:6px 8px;}
 
     /* ── 소크라테스 질문 카드 ── */
     .soc-card{background:rgba(201,168,76,.10);border:1px solid rgba(201,168,76,.28);
@@ -697,19 +699,33 @@ function renderFeedback(data){
   const emos=analysis.emotions||[];
   const pol=analysis.emotion_polarity||'mixed';
   const distortions=analysis.cognitive_distortions||[];
+  const distortionSentences=analysis.distortion_sentences||[];
+  const abc=analysis.abc||{};
+  const reframe=analysis.reframe_question;
+  const recovery=analysis.recovery_hint;
   const followup=analysis.followup_question;
   const polLbl={positive:'긍정적 ☀️',negative:'부정적 🌧️',mixed:'복합적 🌤️'}[pol]||'-';
   const chipsH=emos.length?emos.map(e=>chip(e)).join(''):'<span style="font-size:11px;color:rgba(92,61,40,.42)">감지된 감정 없음</span>';
   const sumH=analysis.summary?`<div style="font-size:11px;color:#2c1a0e;line-height:1.65;margin-bottom:7px">${analysis.summary}</div><hr class="divider">`:'';
 
-  // ① 인지 왜곡 배지
+  // ① CBT 워크시트
   let cbtH='';
-  if(distortions.length){
-    const badges=distortions.map(d=>`<span class="cbt-badge">⚡ ${d}</span>`).join('');
+  if(distortions.length || abc.A || abc.B || abc.C || reframe || recovery){
+    const badges=distortions.length?distortions.map(d=>`<span class="cbt-badge">⚡ ${d}</span>`).join(''):'';
+    const abcH=(abc.A||abc.B||abc.C)?`
+      <div class="sep-section sep-event"><div class="sep-label">A · 사건</div><div class="sep-content">${abc.A||'분석 중'}</div></div>
+      <div class="sep-section sep-thought"><div class="sep-label">B · 자동적 사고</div><div class="sep-content">${abc.B||'분석 중'}</div></div>
+      <div class="sep-section sep-emotion"><div class="sep-label">C · 감정/결과</div><div class="sep-content">${abc.C||'분석 중'}</div></div>`:'';
+    const sentH=distortionSentences.length?`<div class="cbt-hint">포착 문장: ${distortionSentences.slice(0,2).map(x=>`“${x.sentence||x}”`).join(' · ')}</div>`:'';
     cbtH=`<div class="cbt-section">
-      <div class="cbt-title">🧠 인지 왜곡 패턴</div>
-      <div>${badges}</div>
-      <div class="cbt-hint">이런 사고 패턴이 보여요. 마루가 함께 살펴볼게요.</div>
+      <div class="cbt-title">🧠 웰니스 사고 정리</div>
+      ${badges?`<div>${badges}</div>`:''}
+      ${abcH}
+      ${sentH}
+      ${reframe?`<div class="soc-card"><div class="soc-label">🔎 생각 바꿔보기</div><div class="soc-q">${reframe}</div></div>`:''}
+      ${recovery?`<div class="cbt-hint">5분 행동: ${recovery}</div>`:''}
+    <div class="wellness-note">진단이 아닌 자기성찰용 기록이에요.</div>
+      <div class="wellness-note">이 내용은 진단이나 치료가 아니라, CBT에서 영감을 받은 자기성찰용 안내예요.</div>
     </div>`;
   }
 
@@ -742,6 +758,7 @@ function renderFeedback(data){
       <div class="sec-lbl">🐱 마루의 한마디</div>
       <div class="maru-memo">${maru_memo||'마루가 할 말이 없어요.'}</div>
       ${socH}
+      <div class="wellness-note">Read:Me는 의료적 진단/치료가 아닌 웰니스 기록 도구예요. 감정이 너무 버겁거나 안전이 걱정되면 주변 사람이나 전문가에게 도움을 요청해주세요.</div>
       ${ai_connected===false?'<div style="font-size:9px;color:rgba(160,100,60,.55);margin-top:5px">⚠️ AI 미연결 — .env에 GOOGLE_API_KEY를 추가하세요 (<a href="https://aistudio.google.com/apikey" target="_blank" style="color:inherit">발급</a>)</div>':''}
     </div>`;
 }
@@ -804,16 +821,23 @@ function selectDiary(d){
   const polLbl={positive:'긍정적 ☀️',negative:'부정적 🌧️',mixed:'복합적 🌤️'}[d.emotion_polarity]||'-';
   const distortions=d.cognitive_distortions||[];
   const implicitEmos=d.implicit_emotions||[];
+  const abc=d.abc||{};
+  const reframe=d.reframe_question;
+  const recovery=d.recovery_hint;
+  const distortionSentences=d.distortion_sentences||[];
 
   // ② 사건-감정-생각 분리 뷰
-  const eventsH=(d.events||[]).length
+  const eventsH=abc.A || ((d.events||[]).length
     ?d.events.map(ev=>`<div style="margin-bottom:2px">• ${ev}</div>`).join('')
-    :'<span style="color:rgba(92,61,40,.4)">분석 데이터 없음</span>';
+    :'<span style="color:rgba(92,61,40,.4)">분석 데이터 없음</span>');
 
   const emotionH=emos||'<span style="color:rgba(92,61,40,.4)">없음</span>';
 
   let thoughtH='';
-  if(distortions.length){
+  if(abc.B){
+    thoughtH=`<div style="font-size:10.5px;color:#2c1a0e;line-height:1.6;margin-bottom:4px">${abc.B}</div>` +
+      (distortions.length?distortions.map(dt=>`<span class="cbt-badge">⚡ ${dt}</span>`).join(''):'');
+  } else if(distortions.length){
     thoughtH=distortions.map(dt=>`<span class="cbt-badge">⚡ ${dt}</span>`).join('');
   } else if(implicitEmos.length){
     thoughtH=implicitEmos.map(ie=>`<div style="font-size:10px;color:#6a2090;margin-bottom:1px">• ${ie}</div>`).join('');
@@ -821,9 +845,12 @@ function selectDiary(d){
     thoughtH='<span style="color:rgba(92,61,40,.4)">없음</span>';
   }
 
-  const socH=d.followup_question?`<div class="soc-card" style="margin-top:6px">
+  const sentH=distortionSentences.length?`<div class="cbt-hint" style="margin-bottom:5px">포착 문장: ${distortionSentences.slice(0,2).map(x=>`“${x.sentence||x}”`).join(' · ')}</div>`:'';
+  const socH=(reframe||d.followup_question||recovery)?`<div class="soc-card" style="margin-top:6px">
     <div class="soc-label">💬 마루의 질문</div>
-    <div class="soc-q">${d.followup_question}</div>
+    <div class="soc-q">${reframe||d.followup_question}</div>
+    ${recovery?`<div class="cbt-hint">5분 행동: ${recovery}</div>`:''}
+    <div class="wellness-note">진단이 아닌 자기성찰용 기록이에요.</div>
   </div>`:'';
 
   document.getElementById('lib-detail').innerHTML=`
@@ -841,11 +868,13 @@ function selectDiary(d){
       <div class="sep-section sep-emotion">
         <div class="sep-label">💙 감정</div>
         <div class="chips">${emotionH}</div>
+        ${abc.C?`<div class="sep-content" style="margin-top:4px">${abc.C}</div>`:''}
       </div>
       <div class="sep-section sep-thought">
         <div class="sep-label">🧠 생각 패턴</div>
         <div>${thoughtH}</div>
       </div>
+      ${sentH}
       ${socH}
     </div>`;
 }

@@ -49,6 +49,16 @@
         "last_turn_id": "019e3c1a-fd6d-7e83-ae8f-6c19b12589a0",
         "last_thread_id": null
       }
+    },
+    "omx-1779265752490-6qoag3": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|좋아. 실행은 보통 이렇게 하면 돼: ```bash uvicorn main:app --reload ``` 브라우저에서: ```text http://127.0.0.1:8000 ``` 참고로 첫 분석 때 hugging face 모델 로딩 때문에 조금 오래 걸릴 수 있어. gemini 분석까지 쓰려면 `.env`에 `google_api_key`도 있어야 해.",
+        "first_seen_at": "2026-05-20T08:39:16.162Z",
+        "last_seen_at": "2026-05-20T08:39:16.162Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4489-ed22-7331-bd18-052177088bfd",
+        "last_thread_id": null
+      }
     }
   }
 }
