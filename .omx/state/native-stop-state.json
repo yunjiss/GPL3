@@ -59,6 +59,26 @@
         "last_turn_id": "019e4489-ed22-7331-bd18-052177088bfd",
         "last_thread_id": null
       }
+    },
+    "omx-1779276650470-m04pth": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|다시 실행해봤는데, **여전히 gemini 서버 접속이 안 됩니다.** ### 확인 결과 - `.env`는 새 값으로 읽히고 있음 - 그런데 `/analyze` 호출 시 - `ai_connected: false` - `ai_error: 네트워크/dns 문제로 gemini 서버에 연결하지 못했어요.` - 로그에도 `nodename nor servname provided`가 남음 ### 의미 지금은 **키를 못 읽는 문제보다, 네트워크/dns로 gemini에 아예 접속 못 하는 상태**로 보입니다. ### 지금 상태에서 가능한 해석 1. **이 실행 환경에서 외부 google api 접속이 막혀 있음** 2. 또는 **로컬 머신/서버의 dns 또는 인터넷 연결 문제** 3. 키 문제였다면 보통 `403 permission_denied` 같은 응답이 나와야 하는데, 지금은 그 전에 연결 자체가 실패합니다 ### 요약 - `.env` 반영 문제는 아니고 - **gemini 외부 접속 문제**로 다시 막힌 상태입니다 원하면 다음으로는 내가 바로: - 접속 실패 원인을 더 자세히 찍는 로그를 추가하거나 - 브라우저에 `ai_error`를 더 눈에 띄게 보여주도록 정리하거나 - 네트워크 체크용 `/health` 같은 확인 엔드포인트를 붙여서 원인 분리를 더 확실하게 해드릴게요.",
+        "first_seen_at": "2026-05-20T15:13:06.722Z",
+        "last_seen_at": "2026-05-20T15:13:06.722Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e45f1-ea4c-7c03-9cf0-5f02713435dc",
+        "last_thread_id": null
+      }
+    },
+    "omx-1779291037318-o2nrnf": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|원인은 **api 키가 없는 게 아니라 gemini 서버 응답 실패**였어요. 확인한 증거: - `.env`에 `google_api_key`는 있음 - 간단한 gemini 테스트는 성공함: `success ok` - 그런데 실제 `/analyze` 흐름에서는 gemini가 이렇게 실패함: ```text 503 unavailable this model is currently experiencing high demand. ``` 그래서 `main.py`에서 gemini 분석 단계가 실패하고: ```py ai_available = false ``` 로 남아서, `index.html`이 화면에 **“⚠️ ai 미연결”**을 띄운 거예요. 즉 지금 상태는: > “ai 설정이 안 됨”이 아니라 > **gemini 모델이 일시적으로 혼잡해서 분석 요청이 실패함** 제가 `main.py`도 수정해서 앞으로는 503/429일 때 더 정확히: - gemini 서버 혼잡 - 사용량 한도 초과 라고 표시되게 해뒀어요. 수정 파일: - `main.py` 실행 중인 서버가 이미 켜져 있으면 껐다가 다시 켜야 수정된 메시지가 반영돼요.",
+        "first_seen_at": "2026-05-20T15:34:59.795Z",
+        "last_seen_at": "2026-05-20T15:34:59.795Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4603-1f99-7fc1-ad13-9043dbc69b68",
+        "last_thread_id": null
+      }
     }
   }
 }

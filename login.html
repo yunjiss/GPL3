@@ -11,7 +11,7 @@
 
     .bg{position:fixed;inset:0;z-index:0;overflow:hidden;}
     .bg::before{content:'';position:absolute;inset:-2%;
-      background:url('/img/GPLback.png') center/cover no-repeat;
+      background:url('/img/web/ago/GPLback.png') center/cover no-repeat;
       filter:brightness(.68) saturate(.9);transform:scale(1.04);}
     .bg::after{content:'';position:absolute;inset:0;
       background:
@@ -148,24 +148,45 @@
 </div>
 
 <script>
-// 기존 유저 이름 자동 완성
+// 이미 로그인된 경우 바로 이동
 try {
-  const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
-  if(u.setupDone) document.getElementById('nameInput').value = u.name;
+  const a = JSON.parse(localStorage.getItem('readme_auth') || '{}');
+  if(a.token) window.location.replace('/app');
 } catch(e) {}
 
-function doLogin() {
-  const name = document.getElementById('nameInput').value.trim();
-  if(!name) { showErr('이름을 입력해주세요.'); return; }
+async function doLogin() {
+  const username = document.getElementById('nameInput').value.trim();
+  const password = document.getElementById('pwInput').value;
+  if(!username) { showErr('아이디를 입력해주세요.'); return; }
+  if(!password) { showErr('비밀번호를 입력해주세요.'); return; }
+
+  const btn = document.querySelector('.login-btn');
+  btn.disabled = true; btn.textContent = '로그인 중…';
+
   try {
-    const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
-    if(u.setupDone) {
-      if(u.name === name) { window.location.href = '/app'; return; }
-      showErr(`"${name}"? 이름을 다시 확인해줘.`); return;
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username, password}),
+    });
+    if(!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showErr(err.detail || '아이디 또는 비밀번호가 틀렸어요.');
+      return;
     }
-  } catch(e) {}
-  // 등록된 유저 없으면 → 셋업으로
-  window.location.href = '/setup';
+    const data = await res.json();
+    localStorage.setItem('readme_auth', JSON.stringify({
+      token: data.token,
+      user_id: data.user_id,
+      name: data.name,
+      mbti: data.mbti,
+    }));
+    window.location.href = '/app';
+  } catch(e) {
+    showErr('서버에 연결할 수 없어요.');
+  } finally {
+    btn.disabled = false; btn.textContent = '로그인';
+  }
 }
 
 function goSetup() { window.location.href = '/setup'; }

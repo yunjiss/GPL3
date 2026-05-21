@@ -1,19 +1,25 @@
 import json
 import re
 
-def safe_parse(text):
+
+def safe_parse(text: str) -> dict:
+    """LLM 응답에서 JSON을 추출해 파싱한다. 마크다운 코드블록 및 전후 텍스트를 처리."""
+    # 1) 마크다운 코드블록 제거
+    clean = re.sub(r'```json|```', '', text).strip()
+
+    # 2) 첫 번째 { ... } 블록 추출 (LLM이 앞뒤에 설명 텍스트를 붙이는 경우)
+    match = re.search(r'\{[\s\S]*\}', clean)
+    if match:
+        clean = match.group(0)
+
     try:
-        # LLM이 마크다운 블록을 붙일 경우를 대비해 제거
-        clean_text = re.sub(r'```json|```', '', text).strip()
-        return json.loads(clean_text)
-    except Exception as e:
-        # 파싱 에러 발생 시 기본값 반환 (앱이 터지지 않도록)
+        return json.loads(clean)
+    except Exception:
         return {
-            "summary": "분석에 실패했습니다.",
-            "emotions": [],
-            "events": [],
-            "persons": [],
-            "emotion_intensity": "medium",
-            "emotion_polarity": "mixed",
-            "followup_question": "오늘 하루는 어떠셨나요?"
+            "emotion": [],
+            "distortion": "",
+            "interpretation": "",
+            "question": "",
+            "highlight": "",
+            "maru_message": "",
         }

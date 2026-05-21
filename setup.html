@@ -12,7 +12,7 @@
     /* ── 배경 ── */
     .bg{position:fixed;inset:0;z-index:0;overflow:hidden;}
     .bg::before{content:'';position:absolute;inset:-2%;
-      background:url('/img/GPLback.png') center/cover no-repeat;
+      background:url('/img/web/ago/GPLback.png') center/cover no-repeat;
       filter:brightness(.68) saturate(.9);transform:scale(1.04);}
     .bg::after{content:'';position:absolute;inset:0;
       background:
@@ -184,10 +184,15 @@
       <div class="messages" id="messages"></div>
 
       <div class="input-area" id="inputArea">
-        <!-- 텍스트 입력 -->
+        <!-- 이름 입력 -->
         <div class="text-row hidden" id="textRow">
           <input type="text" class="chat-input" id="chatInput" placeholder="여기에 입력해줘..." maxlength="50" autocomplete="off"/>
           <button class="send-btn" id="sendBtn" onclick="sendText()">↵</button>
+        </div>
+        <!-- 비밀번호 입력 -->
+        <div class="text-row hidden" id="passwordRow">
+          <input type="password" class="chat-input" id="pwInput" placeholder="비밀번호 (4자 이상)..." maxlength="50" autocomplete="new-password"/>
+          <button class="send-btn" onclick="sendPassword()">↵</button>
         </div>
         <!-- MBTI 선택 -->
         <div class="hidden" id="mbtiRow">
@@ -195,7 +200,7 @@
         </div>
         <!-- 완료 버튼 -->
         <div class="hidden" id="startRow">
-          <button class="start-btn" onclick="goApp()">도서관 열어보기 ✨</button>
+          <button class="start-btn" id="startBtn" onclick="goApp()">도서관 열어보기 ✨</button>
         </div>
       </div>
     </div>
@@ -222,14 +227,14 @@ const MBTI_COMMENT = {
   'ESTP':'모험적이고 현실적인 기업가구나','ESFP':'활기차고 즐거운 에너지를 가졌구나'
 };
 
-let step = 0, userName = '', userMBTI = '';
+let step = 0, userName = '', userPassword = '', userMBTI = '';
 const msgsEl = document.getElementById('messages');
 const maruEl = document.getElementById('maruImg');
 
-// 이미 설정 완료된 유저 → 앱으로
+// 이미 로그인된 유저 → 앱으로
 try {
-  const u = JSON.parse(localStorage.getItem('readme_user') || '{}');
-  if(u.setupDone) window.location.href = '/app';
+  const a = JSON.parse(localStorage.getItem('readme_auth') || '{}');
+  if(a.token) window.location.href = '/app';
 } catch(e) {}
 
 // MBTI 그리드 생성
@@ -272,7 +277,7 @@ async function maruSay(html, ms = 900) {
 }
 
 function showOnly(id) {
-  ['textRow','mbtiRow','startRow'].forEach(r =>
+  ['textRow','passwordRow','mbtiRow','startRow'].forEach(r =>
     document.getElementById(r).classList.toggle('hidden', r !== id)
   );
 }
@@ -299,9 +304,22 @@ async function onName(name) {
   await wait(220);
   await maruSay(`${name}! 좋은 이름이야 🌟<br>앞으로 잘 부탁해!`, 1000);
   await wait(250);
+  await maruSay(`${name}만의 공간을 만들어줄게.<br>비밀번호를 설정해줘! 🔒<br><span style="font-size:11px;opacity:.6">4자 이상이면 돼</span>`, 1200);
+  showOnly('passwordRow');
+  document.getElementById('pwInput').focus();
+  step = 2;
+}
+
+async function onPassword(pw) {
+  showOnly('');
+  addMsg('user', '●'.repeat(pw.length));
+  userPassword = pw;
+  await wait(220);
+  await maruSay('완벽해! 잘 기억해둬 🔐', 800);
+  await wait(250);
   await maruSay('하나만 더 물어볼게.<br>너의 MBTI가 뭐야? 🦉<br><span style="font-size:11px;opacity:.6">아래에서 선택해줘!</span>', 1300);
   showOnly('mbtiRow');
-  step = 2;
+  step = 3;
 }
 
 async function onMBTI(mbti) {
@@ -312,12 +330,37 @@ async function onMBTI(mbti) {
   await maruSay(`${mbti}이구나! ${MBTI_COMMENT[mbti] || '멋진 타입이구나'} ✨`, 1050);
   await wait(250);
   await maruSay(`${userName}의 이야기를 들을 준비가 다 됐어.<br>언제든 털어놔, 내가 항상 여기 있을게 🌙`, 1350);
-  localStorage.setItem('readme_user', JSON.stringify({
-    name: userName, mbti: userMBTI, setupDone: true, createdAt: new Date().toISOString()
-  }));
+
+  // 서버에 회원가입
+  try {
+    const res = await fetch('/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: userName, password: userPassword, name: userName, mbti: userMBTI}),
+    });
+    if(!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      await maruSay(`앗, 문제가 생겼어… ${err.detail || '다시 시도해줘'} 😢`, 800);
+      showOnly('startRow');
+      document.getElementById('startBtn').textContent = '다시 시도하기';
+      document.getElementById('startBtn').onclick = () => window.location.reload();
+      step = 4;
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem('readme_auth', JSON.stringify({
+      token: data.token,
+      user_id: data.user_id,
+      name: data.name,
+      mbti: data.mbti,
+    }));
+  } catch(e) {
+    await maruSay('서버에 연결할 수 없어. 나중에 다시 시도해줘 😢', 800);
+  }
+
   await wait(350);
   showOnly('startRow');
-  step = 3;
+  step = 4;
 }
 
 /* ── 이벤트 ── */
@@ -329,8 +372,16 @@ function sendText() {
   onName(v);
 }
 
-function selectMBTI(mbti) {
+function sendPassword() {
   if(step !== 2) return;
+  const v = document.getElementById('pwInput').value;
+  if(v.length < 4) return;
+  document.getElementById('pwInput').value = '';
+  onPassword(v);
+}
+
+function selectMBTI(mbti) {
+  if(step !== 3) return;
   onMBTI(mbti);
 }
 
@@ -338,6 +389,9 @@ function goApp() { window.location.href = '/app'; }
 
 document.getElementById('chatInput').addEventListener('keydown', e => {
   if(e.key === 'Enter') sendText();
+});
+document.getElementById('pwInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') sendPassword();
 });
 
 start();

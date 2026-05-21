@@ -3,8 +3,9 @@ uvicorn
 pydantic
 python-dotenv
 numpy
-# Vertex AI (Gemini 1.5 Flash) — Step 4 마루 메시지 생성
-google-cloud-aiplatform
+requests
+# JWT 인증
+python-jose[cryptography]
 # HuggingFace — Step 1 감정 분류(zero-shot) + NER
 transformers
 torch
