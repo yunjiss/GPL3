@@ -67,6 +67,26 @@ def _init():
             completed    INTEGER DEFAULT 0,
             completed_at TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS action_logs (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL,
+            diary_id      INTEGER NOT NULL,
+            action        TEXT    NOT NULL,
+            date          TEXT    NOT NULL,
+            completed     INTEGER DEFAULT NULL,
+            followup_note TEXT    DEFAULT '',
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id   INTEGER NOT NULL,
+            diary_id  INTEGER NOT NULL,
+            role      TEXT    NOT NULL,
+            message   TEXT    NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     _migrations = [
@@ -84,6 +104,12 @@ def _init():
         "ALTER TABLE diary ADD COLUMN interpretation TEXT DEFAULT ''",
         "ALTER TABLE diary ADD COLUMN question TEXT DEFAULT ''",
         "ALTER TABLE diary ADD COLUMN highlight TEXT DEFAULT ''",
+        "ALTER TABLE diary ADD COLUMN emotion_tags TEXT DEFAULT '[]'",
+        "ALTER TABLE diary ADD COLUMN coping_action TEXT DEFAULT ''",
+        "ALTER TABLE diary ADD COLUMN followup_done INTEGER DEFAULT -1",
+        "ALTER TABLE diary ADD COLUMN followup_reason TEXT DEFAULT ''",
+        "ALTER TABLE diary ADD COLUMN action_result TEXT DEFAULT ''",
+        "ALTER TABLE diary ADD COLUMN chat_history TEXT DEFAULT '[]'",
     ]
     for sql in _migrations:
         try:
@@ -117,11 +143,13 @@ def _jload(v, fallback):
 
 def _parse_row(row: dict) -> dict:
     for f in ("emotions", "events", "persons", "implicit_emotions",
-              "cognitive_distortions", "distortion_sentences"):
+              "cognitive_distortions", "distortion_sentences",
+              "emotion_tags", "chat_history"):
         row[f] = _jload(row.get(f), [])
-    row["abc"]       = _jload(row.get("abc"), {})
-    row["cbt_model"] = _jload(row.get("cbt_model"), {})
-    row["is_resolved"] = bool(row.get("is_resolved"))
+    row["abc"]          = _jload(row.get("abc"), {})
+    row["cbt_model"]    = _jload(row.get("cbt_model"), {})
+    row["is_resolved"]  = bool(row.get("is_resolved"))
+    row["followup_done"] = int(row.get("followup_done") or -1)
     return row
 
 
@@ -180,7 +208,8 @@ def update_user_profile(user_id: int, name: str, mbti: str, interests: list) -> 
 # Diary CRUD
 # ══════════════════════════════════════════════════════════════
 
-def save_diary(text: str, parsed: dict, user_id: int = 1) -> int:
+def save_diary(text: str, parsed: dict, user_id: int = 1,
+               emotion_tags: list | None = None) -> int:
     conn = _get_conn()
     try:
         cur = conn.execute(
@@ -189,8 +218,9 @@ def save_diary(text: str, parsed: dict, user_id: int = 1) -> int:
              emotion_intensity, emotion_polarity, followup_question,
              implicit_emotions, cognitive_distortions, distortion_sentences,
              abc, reframe_question, hidden_need, recovery_hint,
-             is_resolved, cbt_model, interpretation, question, highlight)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             is_resolved, cbt_model, interpretation, question, highlight,
+             emotion_tags)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 user_id,
                 text,
@@ -213,6 +243,7 @@ def save_diary(text: str, parsed: dict, user_id: int = 1) -> int:
                 parsed.get("interpretation") or "",
                 parsed.get("question") or "",
                 parsed.get("highlight") or "",
+                _jdump(emotion_tags or [], []),
             ),
         )
         conn.commit()
@@ -238,6 +269,129 @@ def get_diary_by_id(diary_id: int, user_id: int = 1) -> dict | None:
         row = conn.execute(
             "SELECT * FROM diary WHERE id=? AND user_id=?", [diary_id, user_id]
         ).fetchone()
+        return _parse_row(dict(row)) if row else None
+    finally:
+        conn.close()
+
+
+def update_diary_chat(diary_id: int, user_id: int, history: list) -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE diary SET chat_history=? WHERE id=? AND user_id=?",
+            [_jdump(history, []), diary_id, user_id],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_diary_coping(diary_id: int, user_id: int, action: str) -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE diary SET coping_action=? WHERE id=? AND user_id=?",
+            [action, diary_id, user_id],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_diary_followup(diary_id: int, user_id: int, done: int,
+                          reason: str = "", result: str = "") -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE diary SET followup_done=?, followup_reason=?, action_result=? WHERE id=? AND user_id=?",
+            [done, reason, result, diary_id, user_id],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_chat_message(user_id: int, diary_id: int, role: str, message: str) -> int:
+    conn = _get_conn()
+    try:
+        cur = conn.execute(
+            "INSERT INTO chat_messages (user_id, diary_id, role, message) VALUES (?, ?, ?, ?)",
+            [user_id, diary_id, role, message],
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_diary_chat_messages(diary_id: int, user_id: int) -> list[dict]:
+    conn = _get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT role, message, timestamp FROM chat_messages "
+            "WHERE diary_id=? AND user_id=? ORDER BY id ASC",
+            [diary_id, user_id],
+        ).fetchall()
+        return [{"role": r["role"], "content": r["message"], "timestamp": r["timestamp"]}
+                for r in rows]
+    finally:
+        conn.close()
+
+
+def save_action_log(user_id: int, diary_id: int, action: str, date: str) -> int:
+    conn = _get_conn()
+    try:
+        cur = conn.execute(
+            "INSERT INTO action_logs (user_id, diary_id, action, date) VALUES (?, ?, ?, ?)",
+            [user_id, diary_id, action, date],
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_pending_action_log(user_id: int) -> dict | None:
+    conn = _get_conn()
+    try:
+        row = conn.execute("""
+            SELECT al.*, d.summary, d.interpretation
+            FROM action_logs al
+            LEFT JOIN diary d ON al.diary_id = d.id
+            WHERE al.user_id = ?
+              AND al.completed IS NULL
+              AND DATE(al.created_at) < DATE('now')
+            ORDER BY al.created_at DESC LIMIT 1
+        """, [user_id]).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def complete_action_log(log_id: int, user_id: int, completed: bool, note: str = "") -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE action_logs SET completed=?, followup_note=? WHERE id=? AND user_id=?",
+            [1 if completed else 0, note, log_id, user_id],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_pending_followup(user_id: int) -> dict | None:
+    conn = _get_conn()
+    try:
+        row = conn.execute("""
+            SELECT * FROM diary
+            WHERE user_id = ?
+              AND coping_action != ''
+              AND coping_action IS NOT NULL
+              AND followup_done = -1
+              AND DATE(created_at) < DATE('now')
+            ORDER BY created_at DESC LIMIT 1
+        """, [user_id]).fetchone()
         return _parse_row(dict(row)) if row else None
     finally:
         conn.close()

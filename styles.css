@@ -273,6 +273,10 @@ body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidd
 .home-cta-text{font-size:12px;color:#5c3d28;text-align:center;line-height:1.7;}
 
 /* ── 서재 ── */
+#lib-detail{overflow-y:auto;padding-right:2px;}
+#lib-detail::-webkit-scrollbar{width:3px;}
+#lib-detail::-webkit-scrollbar-thumb{background:rgba(160,120,60,.28);border-radius:2px;}
+
 .lib-item{padding:8px 9px;background:rgba(255,255,255,.18);border:1px solid rgba(160,120,60,.16);
   border-radius:4px;cursor:pointer;transition:all .15s;margin-bottom:5px;}
 .lib-item:hover{background:rgba(255,255,255,.33);}
@@ -287,8 +291,8 @@ body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidd
 .lib-item:hover .del-btn{opacity:1;}
 .del-btn:hover{background:rgba(180,80,60,.15);color:rgba(200,60,40,.9);}
 .lib-text{background:rgba(255,255,255,.22);border:1px solid rgba(160,120,60,.20);
-  border-radius:4px;padding:8px 10px;font-size:11px;line-height:1.75;color:#2c1a0e;
-  margin-bottom:7px;max-height:90px;overflow-y:auto;}
+  border-radius:4px;padding:10px 12px;font-size:11.5px;line-height:1.85;color:#2c1a0e;
+  margin-bottom:7px;white-space:pre-wrap;word-break:break-word;}
 
 /* ── 통계 ── */
 .stat-big{text-align:center;padding:8px 0 6px;}
@@ -513,6 +517,214 @@ body{font-family:'Gowun Batang','Noto Serif KR',serif;height:100vh;overflow:hidd
 .spin{display:inline-block;animation:spin .85s linear infinite;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .fi{animation:fadeIn .22s ease both;}
+
+/* ══════════════════════════════════════════════════════════
+   감정 태그 — 선택 상태
+══════════════════════════════════════════════════════════ */
+.emo-sel-chip.selected{
+  background:rgba(201,168,76,.38);
+  border-color:rgba(201,168,76,.7);
+  color:#2c1a0e;
+  font-weight:700;
+  box-shadow:0 0 6px rgba(201,168,76,.35);
+}
+
+/* ══════════════════════════════════════════════════════════
+   마루 채팅 이어가기
+══════════════════════════════════════════════════════════ */
+.chat-section{
+  margin-top:10px;
+  border-top:1px dashed rgba(160,120,60,.25);
+  padding-top:10px;
+}
+.chat-label{
+  font-size:9.5px;font-weight:700;letter-spacing:.4px;
+  color:rgba(92,61,40,.6);margin-bottom:6px;
+}
+.chat-messages{
+  display:flex;flex-direction:column;gap:6px;
+  max-height:150px;overflow-y:auto;margin-bottom:8px;
+  padding-right:2px;
+}
+.chat-messages::-webkit-scrollbar{width:2px;}
+.chat-messages::-webkit-scrollbar-thumb{background:rgba(160,120,60,.25);border-radius:2px;}
+
+.chat-msg{
+  font-size:11px;line-height:1.65;padding:7px 10px;border-radius:10px;max-width:90%;
+  animation:fadeIn .18s ease both;
+}
+.chat-msg-user{
+  background:rgba(201,168,76,.18);border:1px solid rgba(201,168,76,.32);
+  color:#2c1a0e;align-self:flex-end;border-radius:10px 10px 3px 10px;
+}
+.chat-msg-maru{
+  background:#fff8e6;border:1px solid rgba(201,168,76,.22);
+  color:#3a2010;align-self:flex-start;border-radius:10px 10px 10px 3px;
+}
+.chat-input-wrap{
+  display:flex;gap:6px;
+}
+.chat-input{
+  flex:1;background:rgba(255,246,214,.22);
+  border:1px solid rgba(89,55,23,.25);border-radius:20px;
+  padding:6px 12px;font-family:'Noto Serif KR',serif;font-size:11.5px;
+  color:#2d1b0e;outline:none;
+}
+.chat-input:focus{border-color:rgba(201,168,76,.5);}
+.chat-send-btn{
+  background:linear-gradient(135deg,#9e7428,#7a5428);border:none;
+  color:#fff;padding:6px 14px;border-radius:20px;
+  font-family:'Noto Serif KR',serif;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;flex-shrink:0;
+}
+.chat-send-btn:hover{transform:translateY(-1px);}
+.chat-send-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+
+/* ══════════════════════════════════════════════════════════
+   행동 선택 섹션
+══════════════════════════════════════════════════════════ */
+.action-section{
+  margin-top:10px;padding:11px 12px;
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(160,120,60,.20);border-radius:7px;
+}
+.action-title{
+  font-size:11px;font-weight:700;color:#4a3010;margin-bottom:5px;
+}
+.action-maru-hint{
+  font-size:10px;color:rgba(92,61,40,.72);
+  font-style:italic;margin-bottom:7px;line-height:1.55;
+  padding:4px 8px;background:rgba(201,168,76,.10);border-radius:4px;
+}
+.action-opts{
+  display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;
+}
+.action-opt{
+  background:rgba(255,255,255,.22);border:1px solid rgba(160,120,60,.25);
+  color:#3a2510;border-radius:16px;padding:4px 12px;
+  font-family:'Noto Serif KR',serif;font-size:10.5px;cursor:pointer;
+  transition:all .14s;
+}
+.action-opt:hover{background:rgba(201,168,76,.22);border-color:rgba(201,168,76,.45);}
+.action-opt.selected{
+  background:linear-gradient(135deg,rgba(201,168,76,.35),rgba(201,168,76,.20));
+  border-color:rgba(201,168,76,.65);font-weight:700;color:#2c1a0e;
+}
+.action-custom-row{display:flex;gap:5px;}
+.action-custom-input{
+  flex:1;background:rgba(255,246,214,.22);
+  border:1px solid rgba(89,55,23,.22);border-radius:14px;
+  padding:4px 10px;font-family:'Noto Serif KR',serif;font-size:10.5px;
+  color:#2d1b0e;outline:none;
+}
+.action-custom-btn{
+  background:rgba(120,80,30,.22);border:1px solid rgba(120,80,30,.30);
+  color:#3a2510;border-radius:14px;padding:4px 10px;
+  font-family:'Noto Serif KR',serif;font-size:10px;cursor:pointer;
+}
+.action-done-msg{
+  margin-top:7px;font-size:10.5px;color:#2a7a3a;
+  background:rgba(42,122,58,.10);border:1px solid rgba(42,122,58,.22);
+  border-radius:5px;padding:5px 9px;font-weight:600;
+}
+
+/* ══════════════════════════════════════════════════════════
+   다음날 체크 카드
+══════════════════════════════════════════════════════════ */
+.followup-card{
+  background:rgba(201,168,76,.14);
+  border:1px solid rgba(201,168,76,.42);border-radius:8px;
+  padding:12px 14px;margin-bottom:12px;
+}
+.followup-header{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.followup-icon{font-size:18px;}
+.followup-title{font-size:12px;font-weight:700;color:#342112;}
+.followup-action{
+  font-size:12px;font-style:italic;color:#5c3d28;
+  padding:5px 9px;background:rgba(255,255,255,.3);
+  border-radius:4px;margin-bottom:4px;
+}
+.followup-date{font-size:9px;color:rgba(92,61,40,.42);margin-bottom:8px;}
+.followup-btns{display:flex;gap:7px;}
+.followup-btn{
+  flex:1;padding:7px 0;border:none;border-radius:6px;
+  font-family:'Noto Serif KR',serif;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;
+}
+.followup-yes{background:linear-gradient(135deg,#4a9a5a,#2a7a3a);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.followup-no{background:rgba(120,80,30,.18);border:1px solid rgba(120,80,30,.28);color:#3a2510;}
+.followup-yes:hover{transform:translateY(-1px);}
+.followup-no:hover{background:rgba(120,80,30,.28);}
+
+.followup-yes-section,.followup-no-section{margin-top:8px;}
+.followup-q{font-size:11px;color:#342112;margin-bottom:6px;font-weight:600;}
+.followup-ta{
+  width:100%;background:rgba(255,246,214,.25);
+  border:1px solid rgba(89,55,23,.22);border-radius:5px;
+  padding:7px 10px;font-family:'Noto Serif KR',serif;font-size:11px;
+  line-height:1.7;color:#2d1b0e;resize:none;outline:none;
+  min-height:52px;margin-bottom:5px;
+}
+.followup-submit-btn{
+  background:linear-gradient(135deg,#c9a84c,#9e7428);border:none;color:#fff;
+  padding:5px 16px;border-radius:14px;font-family:'Noto Serif KR',serif;
+  font-size:10.5px;font-weight:700;cursor:pointer;
+}
+.followup-reasons{display:flex;flex-wrap:wrap;gap:5px;}
+.followup-reason-btn{
+  background:rgba(255,255,255,.22);border:1px solid rgba(160,120,60,.25);
+  color:#3a2510;border-radius:14px;padding:4px 10px;
+  font-family:'Noto Serif KR',serif;font-size:10px;cursor:pointer;transition:all .13s;
+}
+.followup-reason-btn:hover{background:rgba(201,168,76,.22);}
+.followup-custom-input{
+  flex:1;background:rgba(255,246,214,.22);
+  border:1px solid rgba(89,55,23,.22);border-radius:14px;
+  padding:4px 10px;font-family:'Noto Serif KR',serif;font-size:10px;
+  color:#2d1b0e;outline:none;min-width:0;
+}
+.followup-done-msg{
+  margin-top:7px;font-size:11px;color:#2a7a3a;
+  background:rgba(42,122,58,.10);border:1px solid rgba(42,122,58,.22);
+  border-radius:5px;padding:7px 10px;line-height:1.6;
+}
+.followup-retry-btn{
+  display:inline-block;margin-top:6px;
+  background:linear-gradient(135deg,#c9a84c,#9e7428);border:none;color:#fff;
+  padding:5px 14px;border-radius:14px;font-family:'Noto Serif KR',serif;
+  font-size:10px;font-weight:700;cursor:pointer;
+}
+
+/* ══════════════════════════════════════════════════════════
+   서재 — 대화 기록·행동 표시
+══════════════════════════════════════════════════════════ */
+.lib-chat-history{
+  margin-top:8px;padding-top:6px;border-top:1px solid rgba(160,120,60,.15);
+}
+.lib-chat-msg{
+  font-size:10.5px;line-height:1.6;padding:5px 8px;
+  border-radius:7px;margin-bottom:4px;
+}
+.lib-chat-user{background:rgba(201,168,76,.14);color:#2c1a0e;text-align:right;}
+.lib-chat-assistant{background:rgba(255,255,255,.22);color:#3a2010;}
+.lib-chat-role{
+  font-size:8.5px;font-weight:700;letter-spacing:.3px;
+  display:block;margin-bottom:2px;color:rgba(92,61,40,.5);
+}
+.lib-coping-row{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  margin-top:6px;font-size:10px;
+}
+.lib-coping-label{color:rgba(92,61,40,.55);font-weight:700;}
+.lib-coping-val{color:#2c1a0e;font-style:italic;}
+.lib-coping-status{
+  font-size:9.5px;padding:2px 8px;border-radius:10px;
+  background:rgba(42,122,58,.12);border:1px solid rgba(42,122,58,.25);color:#2a7a3a;
+}
+.lib-coping-result{
+  font-size:10px;color:#5c3d28;
+  padding:5px 8px;background:rgba(255,255,255,.2);border-radius:4px;margin-top:3px;
+}
 
 /* ── 반응형 ── */
 @media(max-width:1100px){

@@ -31,6 +31,10 @@ from db import (
     create_user, get_user_by_username, get_user_by_id, update_user_profile,
     save_diary, get_all_diaries, get_diary_by_id, delete_diary,
     get_maru_state, upsert_maru_state,
+    update_diary_chat, update_diary_coping, update_diary_followup,
+    get_pending_followup,
+    save_action_log, get_pending_action_log, complete_action_log,
+    save_chat_message, get_diary_chat_messages,
 )
 from utils import safe_parse
 
@@ -69,13 +73,142 @@ def serve_js():
 
 
 # ── Ollama ────────────────────────────────────────────────────
+_SYSTEM_PROMPT = """너는 감정 분석 AI '마루'다.
+
+반드시 한국어로만 답변해야 한다.
+절대 영어를 사용하지 마라.
+
+말투:
+- 따뜻하고 부드럽게
+- 친구처럼 자연스럽게
+- 약간 귀엽게 (과하지 않게)
+
+역할:
+1. 감정 공감
+2. 감정 분석
+3. 자연스러운 질문
+4. 해결 방향 제시
+
+출력 규칙:
+- 3~6문장 자연스럽게 작성
+- 설명 금지 (예: "~식 질문", "~를 유도하는" 같은 메타 설명 금지)
+- 대화처럼 말하기"""
+
+
+# ── 질문 템플릿 ──────────────────────────────────────────────
+import random as _random
+
+_QUESTIONS = [
+    "오늘 감정이 시작된 순간이 있었을까?",
+    "그때 어떤 생각이 들었을까?",
+    "혹시 다른 해석도 가능할까?",
+    "그 상황을 조금 멀리서 보면 어때 보여?",
+    "너무 스스로를 몰아붙이고 있는 건 아닐까?",
+    "그 사람이 정말 그런 의도였을까?",
+    "지금 가장 크게 느껴지는 감정은 뭐야?",
+    "이 감정이 너에게 말해주는 건 뭘까?",
+    "지금 네가 가장 필요로 하는 건 뭐야?",
+    "조금 나아지려면 어떤 게 도움이 될까?",
+    "비슷한 상황을 겪은 적 있었어?",
+    "그때는 어떻게 지나갔었지?",
+    "지금 가장 힘든 부분은 뭐야?",
+    "이 상황이 전부 네 탓일까?",
+    "지금 너에게 가장 따뜻한 말은 뭐일까?",
+    "이 감정이 계속 이어질 것 같아?",
+    "조금이라도 가벼워지려면 뭐가 필요할까?",
+    "너무 앞서 걱정하고 있는 건 아닐까?",
+    "지금 이 순간에 집중하면 어떤 느낌일까?",
+    "너 자신에게 조금 더 부드럽게 대해줄 수 있을까?",
+]
+
+_EMOTION_QUESTIONS: dict[str, str] = {
+    "불안함":      "혹시 아직 일어나지 않은 일을 미리 걱정하고 있는 건 아닐까?",
+    "불안":        "혹시 아직 일어나지 않은 일을 미리 걱정하고 있는 건 아닐까?",
+    "걱정":        "혹시 아직 일어나지 않은 일을 미리 걱정하고 있는 건 아닐까?",
+    "두려움":      "지금 가장 두렵게 느껴지는 게 정확히 뭔지 말해줄 수 있어?",
+    "우울함":      "요즘 가장 기운 빠지게 만드는 게 뭐야?",
+    "우울":        "요즘 가장 기운 빠지게 만드는 게 뭐야?",
+    "슬픔":        "지금 이 슬픔 안에 뭔가 그리운 게 있는 걸까?",
+    "외로움":      "지금 옆에 있어줬으면 하는 사람이 있어?",
+    "분노":        "그 상황에서 가장 억울했던 부분이 뭐였을까?",
+    "짜증남":      "그 상황에서 가장 억울했던 부분이 뭐였을까?",
+    "원망":        "혹시 그 마음 뒤에 상처받은 부분이 있는 건 아닐까?",
+    "혼란스러움":  "무엇이 가장 헷갈리게 만들고 있는 걸까?",
+    "싱숭생숭함":  "지금 마음이 여러 방향으로 당기는 것 같은데, 어떤 게 제일 강하게 느껴져?",
+    "무기력함":    "요즘 뭔가 하고 싶다는 마음이 들지 않아?",
+    "지침":        "언제부터 이렇게 지쳐있었던 것 같아?",
+}
+
+
+def generate_question(emotions: list[str]) -> str:
+    for e in emotions:
+        if e in _EMOTION_QUESTIONS:
+            return _EMOTION_QUESTIONS[e]
+    return _random.choice(_QUESTIONS)
+
+
+def _time_ago(created_at_str: str) -> str:
+    from datetime import datetime as _dt
+    try:
+        past = _dt.fromisoformat(str(created_at_str).replace(" ", "T"))
+        days = (_dt.now() - past).days
+        if days >= 90: return f"{days // 30}개월 전"
+        if days >= 14: return f"{days // 7}주 전"
+        if days >= 1:  return f"{days}일 전"
+        return "오늘"
+    except Exception:
+        return "예전에"
+
+_OLLAMA_CHAT_OPTIONS = {"temperature": 0.7, "num_predict": 300}
+_OLLAMA_JSON_OPTIONS  = {"temperature": 0.3, "num_predict": 500}
+
+
 def ask_ollama(prompt: str) -> str:
+    """자연어 한국어 응답 (채팅·마루 메시지 등)"""
+    res = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": "llama3",
+            "messages": [
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user",   "content": prompt},
+            ],
+            "stream":  False,
+            "options": _OLLAMA_CHAT_OPTIONS,
+        },
+        timeout=120,
+    )
+    return res.json()["message"]["content"]
+
+
+def _ask_ollama_json(prompt: str) -> str:
+    """JSON 분석 응답 전용 (/api/generate — 시스템 프롬프트 없음, JSON 파싱 안정성 우선)"""
     res = requests.post(
         "http://localhost:11434/api/generate",
-        json={"model": "llama3", "prompt": prompt, "stream": False},
+        json={
+            "model":  "llama3",
+            "prompt": prompt,
+            "stream": False,
+            "options": _OLLAMA_JSON_OPTIONS,
+        },
         timeout=120,
     )
     return res.json()["response"]
+
+
+def ask_ollama_chat(messages: list[dict]) -> str:
+    """대화 히스토리 포함 멀티턴 채팅"""
+    res = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": "llama3",
+            "messages": [{"role": "system", "content": _SYSTEM_PROMPT}] + messages,
+            "stream":  False,
+            "options": _OLLAMA_CHAT_OPTIONS,
+        },
+        timeout=120,
+    )
+    return res.json()["message"]["content"]
 
 
 # ── JWT 인증 ─────────────────────────────────────────────────
@@ -130,6 +263,7 @@ class LoginRequest(BaseModel):
 
 class DiaryRequest(BaseModel):
     text: str
+    emotion_tags: list[str] = []
 
     @validator("text")
     def text_not_empty(cls, v):
@@ -166,6 +300,51 @@ class SearchRequest(BaseModel):
 class ActionRequest(BaseModel):
     diary_id: int
     action_text: str
+
+
+class ChatRequest(BaseModel):
+    diary_id: int
+    user_message: str
+
+    @validator("user_message")
+    def msg_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("메시지를 입력해줘")
+        return v.strip()
+
+
+class CopingRequest(BaseModel):
+    action: str
+
+    @validator("action")
+    def action_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("행동을 입력해줘")
+        return v.strip()
+
+
+class FollowupRequest(BaseModel):
+    done: bool
+    reason: str = ""
+    result: str = ""
+
+
+class SaveActionRequest(BaseModel):
+    diary_id: int
+    action: str
+
+    @validator("action")
+    def action_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("행동을 입력해줘")
+        return v.strip()
+
+
+class CompleteActionRequest(BaseModel):
+    log_id:    int
+    diary_id:  int
+    completed: bool
+    note:      str = ""
 
 
 # ══════════════════════════════════════════════════════════════
@@ -361,7 +540,7 @@ def analyze(req: DiaryRequest, user: dict = Depends(get_current_user)):
             mbti=mbti,
             interests=interests,
         )
-        raw    = ask_ollama(prompt)
+        raw    = _ask_ollama_json(prompt)
         parsed = safe_parse(raw)
 
         if parsed.get("emotion"):
@@ -380,14 +559,36 @@ def analyze(req: DiaryRequest, user: dict = Depends(get_current_user)):
 
         if parsed.get("maru_message"):
             maru_memo = parsed["maru_message"]
-        if parsed.get("rag_narrative"):
-            rag_narrative = parsed["rag_narrative"]
+
+        # question 폴백: Ollama가 비어 있으면 감정별 템플릿 사용
+        if not analysis.get("question"):
+            analysis["question"]          = generate_question(analysis.get("emotions", []))
+            analysis["followup_question"] = analysis["question"]
 
         ai_available = True
     except Exception as e:
         print("🔥 AI ERROR:", e)
         logger.warning("Ollama 분석 실패: %s", e)
         ai_error = "Ollama 연결 실패. http://localhost:11434 에서 실행 중인지 확인해주세요."
+        # AI 없을 때도 question 생성
+        analysis["question"]          = generate_question(analysis.get("emotions", []))
+        analysis["followup_question"] = analysis["question"]
+
+    # ── Step 4b-2: RAG 시간 인식 내러티브 (LLM 재해석) ─────────
+    if ai_available and best_past and best_past.get("weighted_score", 0) >= 0.65:
+        past_summary = best_past.get("summary") or best_past.get("emotions_preview") or ""
+        if past_summary:
+            time_str = _time_ago(best_past.get("created_at", ""))
+            try:
+                rag_prompt = (
+                    f"{time_str}에 비슷한 기록이 있어.\n"
+                    f"그때 기록: \"{past_summary}\"\n"
+                    f"오늘 기록과 자연스럽게 연결해서 따뜻하게 2~3문장으로 말해줘. "
+                    f"시간 흐름({time_str})을 포함해서, 대화체로."
+                )
+                rag_narrative = ask_ollama(rag_prompt)
+            except Exception:
+                rag_narrative = f"{time_str}에도 비슷한 감정이 있었어. 그때도 결국 괜찮아졌잖아."
 
     # ── Step 4c: 마루 상태 기반 메시지 보강 (AI 연결 시) ──────
     maru_state = _get_or_init_state(user_id)
@@ -405,7 +606,8 @@ def analyze(req: DiaryRequest, user: dict = Depends(get_current_user)):
 
     # ── Step 5: DB 저장 ──────────────────────────────────────
     try:
-        diary_id = save_diary(req.text, analysis, user_id=user_id)
+        diary_id = save_diary(req.text, analysis, user_id=user_id,
+                              emotion_tags=req.emotion_tags)
     except Exception as e:
         logger.error("일기 저장 실패: %s", e)
         diary_id = -1
@@ -456,6 +658,196 @@ def analyze(req: DiaryRequest, user: dict = Depends(get_current_user)):
         "ai_connected": ai_available,
         "ai_error":     ai_error,
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# 마루 채팅 이어가기 (/chat)
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/chat")
+def chat_endpoint(req: ChatRequest, user: dict = Depends(get_current_user)):
+    user_id   = user["user_id"]
+    user_name = user.get("name", "사용자") or "사용자"
+
+    diary = get_diary_by_id(req.diary_id, user_id)
+    if not diary:
+        raise HTTPException(status_code=404, detail="일기를 찾을 수 없어요")
+
+    # DB에서 대화 히스토리 로드
+    db_history = get_diary_chat_messages(req.diary_id, user_id)
+
+    # 일기 맥락을 첫 메시지 쌍으로 주입
+    emotions_str = ", ".join(diary.get("emotions", [])) or "복잡한"
+    summary_str  = diary.get("interpretation") or diary.get("summary") or ""
+    ctx_msg = (
+        f"오늘 {user_name}의 일기야. 감정: {emotions_str}. "
+        f"내용 요약: {summary_str}\n"
+        f"이 일기를 바탕으로 {user_name}와 따뜻하게 대화해줘."
+    )
+    ollama_messages: list[dict] = [
+        {"role": "user",      "content": ctx_msg},
+        {"role": "assistant", "content": "응, 잘 읽었어. 이야기 들을게."},
+    ]
+    for msg in db_history[-12:]:
+        role = "user" if msg["role"] == "user" else "assistant"
+        ollama_messages.append({"role": role, "content": msg["content"]})
+    ollama_messages.append({"role": "user", "content": req.user_message})
+
+    try:
+        response = ask_ollama_chat(ollama_messages).strip()
+    except Exception as e:
+        logger.warning("채팅 Ollama 실패: %s", e)
+        response = "지금은 연결이 어렵네. 하지만 네 말은 잘 들었어. 더 이야기해줄 수 있어?"
+
+    try:
+        save_chat_message(user_id, req.diary_id, "user",  req.user_message)
+        save_chat_message(user_id, req.diary_id, "maru",  response)
+        # diary.chat_history 컬럼도 동기화
+        all_history = db_history + [
+            {"role": "user",  "content": req.user_message},
+            {"role": "maru",  "content": response},
+        ]
+        update_diary_chat(req.diary_id, user_id,
+                          [{"role": m["role"], "content": m["content"]} for m in all_history])
+    except Exception as e:
+        logger.warning("채팅 저장 실패: %s", e)
+
+    return {"response": response}
+
+
+@app.get("/diaries/{diary_id}/messages")
+def get_diary_messages(diary_id: int, user: dict = Depends(get_current_user)):
+    diary = get_diary_by_id(diary_id, user["user_id"])
+    if not diary:
+        raise HTTPException(status_code=404, detail="일기를 찾을 수 없어요")
+    msgs = get_diary_chat_messages(diary_id, user["user_id"])
+    # fallback: chat_messages 비어있으면 diary.chat_history 사용
+    if not msgs:
+        msgs = [{"role": m.get("role","user"), "content": m.get("content",""), "timestamp":""}
+                for m in (diary.get("chat_history") or [])]
+    return msgs
+
+
+# ══════════════════════════════════════════════════════════════
+# 행동 선택 저장 (/diaries/{id}/coping)
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/diaries/{diary_id}/coping")
+def save_coping(diary_id: int, req: CopingRequest, user: dict = Depends(get_current_user)):
+    diary = get_diary_by_id(diary_id, user["user_id"])
+    if not diary:
+        raise HTTPException(status_code=404, detail="일기를 찾을 수 없어요")
+    update_diary_coping(diary_id, user["user_id"], req.action)
+    return {"ok": True, "action": req.action}
+
+
+# ══════════════════════════════════════════════════════════════
+# 다음날 체크 (/pending-followup, /diaries/{id}/followup)
+# ══════════════════════════════════════════════════════════════
+
+@app.get("/pending-followup")
+def pending_followup(user: dict = Depends(get_current_user)):
+    diary = get_pending_followup(user["user_id"])
+    if not diary:
+        return {"pending": False}
+    return {
+        "pending":       True,
+        "diary_id":      diary["id"],
+        "coping_action": diary.get("coping_action", ""),
+        "diary_date":    diary.get("created_at", ""),
+        "summary":       diary.get("summary") or diary.get("interpretation") or "",
+    }
+
+
+@app.post("/save-action")
+def save_action_endpoint(req: SaveActionRequest, user: dict = Depends(get_current_user)):
+    from datetime import date as _date
+    diary = get_diary_by_id(req.diary_id, user["user_id"])
+    if not diary:
+        raise HTTPException(status_code=404, detail="일기를 찾을 수 없어요")
+    log_id = save_action_log(user["user_id"], req.diary_id, req.action, str(_date.today()))
+    update_diary_coping(req.diary_id, user["user_id"], req.action)
+    return {"ok": True, "log_id": log_id, "action": req.action}
+
+
+@app.get("/check-action")
+def check_action(user: dict = Depends(get_current_user)):
+    log = get_pending_action_log(user["user_id"])
+    if log:
+        return {
+            "pending":  True,
+            "log_id":   log["id"],
+            "diary_id": log["diary_id"],
+            "action":   log["action"],
+            "date":     log["created_at"],
+            "summary":  log.get("summary") or "",
+        }
+    diary = get_pending_followup(user["user_id"])
+    if not diary:
+        return {"pending": False}
+    return {
+        "pending":  True,
+        "log_id":   -1,
+        "diary_id": diary["id"],
+        "action":   diary.get("coping_action", ""),
+        "date":     diary.get("created_at", ""),
+        "summary":  diary.get("summary") or diary.get("interpretation") or "",
+    }
+
+
+@app.post("/complete-action")
+def complete_action_endpoint(req: CompleteActionRequest, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    if req.log_id > 0:
+        complete_action_log(req.log_id, user_id, req.completed, req.note)
+    update_diary_followup(
+        req.diary_id, user_id,
+        done=1 if req.completed else 0,
+        reason="" if req.completed else req.note,
+        result=req.note if req.completed else "",
+    )
+    if req.completed:
+        diaries = get_all_diaries(user_id)
+        same = [d for d in diaries
+                if d.get("coping_action") == req.note.split("·")[0].strip()
+                and d.get("followup_done") == 1]
+        pattern_msg = None
+        if len(same) >= 2:
+            pattern_msg = f"이 방법이 너한테 잘 맞는 것 같아. 계속 이어나가봐 🌱"
+        return {"ok": True, "pattern_message": pattern_msg}
+    return {"ok": True, "maru_response": "어제 못 했구나, 괜찮아. 오늘 새로 도전해볼까?"}
+
+
+@app.post("/diaries/{diary_id}/followup")
+def save_followup(diary_id: int, req: FollowupRequest, user: dict = Depends(get_current_user)):
+    user_id = user["user_id"]
+    diary   = get_diary_by_id(diary_id, user_id)
+    if not diary:
+        raise HTTPException(status_code=404, detail="일기를 찾을 수 없어요")
+
+    update_diary_followup(
+        diary_id, user_id,
+        done=1 if req.done else 0,
+        reason=req.reason,
+        result=req.result,
+    )
+
+    if req.done:
+        diaries = get_all_diaries(user_id)
+        same_action = [
+            d for d in diaries
+            if d.get("coping_action") == diary.get("coping_action")
+               and d.get("followup_done") == 1
+               and d.get("action_result")
+        ]
+        pattern_msg = None
+        if len(same_action) >= 2:
+            action = diary.get("coping_action", "")
+            pattern_msg = f"'{action}'을 선택할 때마다 도움이 됐던 것 같아. 이게 너한테 잘 맞는 방법인가 봐 🌱"
+        return {"ok": True, "pattern_message": pattern_msg}
+
+    maru_response = f"어제 못 했구나, 괜찮아. 혹시 뭐가 어려웠는지 같이 생각해볼까?"
+    return {"ok": True, "maru_response": maru_response}
 
 
 # ══════════════════════════════════════════════════════════════
